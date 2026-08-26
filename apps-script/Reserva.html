@@ -97,8 +97,9 @@
 
       <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
     </form>
-    <p class="foot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.<br>
-      <a id="admLink" href="#" target="_blank" rel="noopener" style="display:none;color:var(--accent-ink);font-weight:600;text-decoration:none">🔒 Área da secretaria (entrar) →</a></p>
+    <p class="foot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.</p>
+    <div style="margin-top:12px"><a id="admLink" href="#" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;color:var(--ink);font-weight:700;font-size:14px;text-decoration:none;border:1px solid var(--line-strong);background:var(--surface);border-radius:11px;padding:12px">🔒 Encaminhar para a Central de Reservas</a>
+    <p id="admHint" class="foot" style="margin-top:6px;display:none">Entre com o e-mail <strong>fhopchurch</strong> para acessar o painel da secretaria.</p></div>
   </div>
 
   <div class="card success" id="success" hidden>
@@ -153,8 +154,8 @@ rSpaceGrid.addEventListener("change",checkConflict);
 
 // busca a ocupação confirmada (só espaço+horário, sem nomes)
 google.script.run.withSuccessHandler(function(o){OCUP=o||[];checkConflict();}).withFailureHandler(function(){OCUP=[];}).getOcupacao();
-// link para a área da secretaria (se configurado no Admin)
-google.script.run.withSuccessHandler(function(u){var a=id("admLink");if(u){a.href=u;a.style.display="inline-block";}}).withFailureHandler(function(){}).getLinkPainel();
+// link para a área da secretaria — abre o seletor de conta Google e vai para o painel
+google.script.run.withSuccessHandler(function(u){var a=id("admLink");if(u){a.href="https://accounts.google.com/AccountChooser?continue="+encodeURIComponent(u);id("admHint").style.display="block";}else{a.href="https://accounts.google.com/AccountChooser?continue="+encodeURIComponent(location.href);id("admHint").innerHTML="Faça login com <strong>fhopchurch</strong>. Se o painel não abrir, peça à secretaria o link do painel (configurável em ⚙ Admin).";id("admHint").style.display="block";}}).withFailureHandler(function(){}).getLinkPainel();
 
 id("form").addEventListener("submit",function(e){
   e.preventDefault();

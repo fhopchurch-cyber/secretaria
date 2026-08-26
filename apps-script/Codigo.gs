@@ -189,9 +189,15 @@ function getDados(){
     for(var w=1;w<vs.length;w++){
       var rw = vs[w]; if(!rw[cs.key]) continue;
       var dw = fmtDate(rw[cs.date]); if(dw && dw < CORTE) continue;
+      var tp = str(rw[cs.tipo]) || 'reserva';
+      if(tp === 'atendimento'){
+        // atendimento lançado no painel → vai para a aba Atendimentos (motivo guardado na coluna dept)
+        out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, origem: 'Lançado no painel' });
+        continue;
+      }
       out.requests.push({
         key: String(rw[cs.key]),
-        origem:'Reserva online', tipo: str(rw[cs.tipo]) || 'reserva',
+        origem:'Reserva online', tipo: tp,
         title: str(rw[cs.title]), dept: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]),
         solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]),
         date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
