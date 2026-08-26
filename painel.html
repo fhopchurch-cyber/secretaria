@@ -147,6 +147,7 @@
   .btn-sm:hover{border-color:var(--accent);color:var(--accent-ink)}
   .btn-sm.ok{border-color:var(--ok);color:var(--ok)} .btn-sm.ok:hover{background:var(--ok-bg)}
   .btn-sm.crit{border-color:var(--crit);color:var(--crit)} .btn-sm.crit:hover{background:var(--crit-bg)}
+  .passel{font:inherit;font-size:12.5px;padding:6px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
 
   .prov-group{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px}
   .prov-group h3{font-family:"Archivo",sans-serif;font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
@@ -196,9 +197,51 @@
   .btn-ghost:hover{border-color:var(--accent)}
   .dlg-alert{font-size:12.5px;color:var(--crit);background:var(--crit-bg);border:1px solid var(--crit-line);border-radius:8px;padding:8px 11px;margin-bottom:12px;display:none}
   .dlg-alert.show{display:block}
+
+  .adminsec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:14px}
+  .adminsec h3{font-family:"Archivo",sans-serif;font-size:15px;margin:0 0 3px}
+  .adminsec .ahint{font-size:12px;color:var(--ink-faint);margin:0 0 11px}
+  .chiplist{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+  .chip-ed{display:inline-flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px}
+  .chip-ed button{appearance:none;border:0;background:none;color:var(--ink-faint);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;border-radius:50%}
+  .chip-ed button:hover{color:var(--crit);background:var(--crit-bg)}
+  .addline{display:flex;gap:7px;flex-wrap:wrap}
+  .addline input,.addline select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .addline input{flex:1;min-width:140px}
+  .aliasrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+  .aliasrow .arw{color:var(--ink-faint)}
+  .aliasrow .al-from{font-family:"IBM Plex Mono",monospace;background:var(--surface-2);padding:2px 8px;border-radius:6px}
+  .aliasrow .al-to{color:var(--accent-ink);font-weight:600}
+  .aliasrow button{appearance:none;border:0;background:none;color:var(--ink-faint);cursor:pointer;font-size:14px;margin-left:auto}
+  .aliasrow button:hover{color:var(--crit)}
+  .respname{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);width:100%;max-width:320px;margin-bottom:9px}
+
+  .modebar{display:flex;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:5px;margin:0 0 14px;width:fit-content}
+  .modebar button{appearance:none;border:0;background:none;font:inherit;font-weight:700;font-size:13px;padding:8px 15px;border-radius:8px;cursor:pointer;color:var(--ink-soft);display:inline-flex;gap:7px;align-items:center}
+  .modebar button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .reqwrap{max-width:660px;margin:0 auto}
+  .reqcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px clamp(18px,4vw,28px)}
+  .reqcard .eyebrow{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .reqcard h2{font-family:"Archivo",sans-serif;font-weight:800;font-size:24px;margin:4px 0 4px;letter-spacing:-.02em}
+  .reqcard .lead{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px}
+  .banner{border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:600;margin:6px 0 16px;display:none}
+  .banner.show{display:block}
+  .banner.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+  .banner.bad{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-line)}
+  .banner .bsub{font-weight:500;font-size:12.5px;margin-top:4px;display:block}
+  .reqsuccess{text-align:center;padding:26px 10px}
+  .reqsuccess .big{font-size:40px;margin-bottom:8px}
+  .reqsuccess h3{font-family:"Archivo",sans-serif;font-size:20px;margin:0 0 6px}
+  .reqsuccess p{color:var(--ink-soft);font-size:14px;margin:0 auto 18px;max-width:42ch}
 </style>
 
 <div class="wrap">
+  <div class="modebar" id="modebar">
+    <button data-m="sec" aria-pressed="true">🗂 Secretaria</button>
+    <button data-m="req" aria-pressed="false">➕ Fazer reserva</button>
+  </div>
+
+  <div id="viewSecretaria">
   <header class="top">
     <div class="logo"><div class="mark">F</div><div class="brand"><span class="k">FHOP Church</span><span class="s">Secretaria</span></div></div>
     <div class="demo-flag"><span class="demo-dot"></span> Protótipo · painel completo</div>
@@ -227,6 +270,7 @@
     <button class="tab" role="tab" aria-selected="false" data-t="aprovadas">Aprovadas <span class="cnt" id="c-aprv">0</span></button>
     <button class="tab" role="tab" aria-selected="false" data-t="provid">Providências <span class="cnt" id="c-prov">0</span></button>
     <button class="tab" role="tab" aria-selected="false" data-t="pastoral">Pastoral <span class="cnt" id="c-pas">0</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-t="admin" style="margin-left:auto">⚙ Admin</button>
   </nav>
 
   <section class="panel" data-p="mes">
@@ -271,7 +315,59 @@
     <div class="rows" id="pasrows"></div>
   </section>
 
+  <section class="panel" data-p="admin" hidden>
+    <div class="callout"><b>Configurações.</b> Edite espaços, pastores, departamentos, responsáveis e o dicionário de espaços — <b>sem tocar no código</b>. Tudo salvo automaticamente. Na versão ao vivo, isto fica numa aba de configuração da própria conta.</div>
+    <div id="adminBody"></div>
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-ghost" id="resetCfg">↺ Restaurar padrão</button>
+    </div>
+  </section>
+
   <footer id="foot"></footer>
+  </div><!-- /viewSecretaria -->
+
+  <div id="viewSolicitar" hidden>
+    <div class="reqwrap">
+      <div class="reqcard" id="reqFormCard">
+        <div class="eyebrow">FHOP Church · Reserva de espaço</div>
+        <h2>Solicitar reserva</h2>
+        <p class="lead">Preencha os dados abaixo. Assim que você escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.</p>
+
+        <form id="reqForm">
+          <div class="grid2">
+            <div class="field"><label for="rName">Seu nome</label><input id="rName" type="text" placeholder="Nome do responsável" required></div>
+            <div class="field"><label for="rEmail">Seu e-mail</label><input id="rEmail" type="email" placeholder="para receber a confirmação"></div>
+          </div>
+          <div class="field"><label for="rTitle">Evento / motivo</label><input id="rTitle" type="text" placeholder="Ex.: Ensaio de Louvor" required></div>
+          <div class="field"><label>Responsável</label>
+            <div class="seg" id="rTagSeg" style="margin-bottom:8px"><button type="button" data-k="dept" aria-pressed="true">Departamento</button><button type="button" data-k="pastor" aria-pressed="false">Pastor</button></div>
+            <select id="rDept"></select><select id="rPastor" hidden></select>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="rDate">Data</label><input id="rDate" type="date" required></div>
+            <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="rStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="rEnd" type="time" value="21:00" style="flex:1"></div></div>
+          </div>
+          <div class="field"><label>Espaço(s) desejado(s)</label><div class="spacegrid" id="rSpaceGrid"></div></div>
+
+          <div class="banner" id="rBanner"></div>
+
+          <details class="moreblock"><summary>Insumos e providências (opcional)</summary>
+            <div class="needs" id="rNeedsGrid"></div>
+            <div class="field" style="margin:10px 0 12px"><label for="rObs">Observações</label><input id="rObs" type="text" placeholder="Ex.: 100 cadeiras, 3 mesas"></div>
+          </details>
+
+          <div class="dlg-actions" style="margin-top:4px"><button type="submit" class="btn-primary" id="rSubmit">Enviar solicitação</button></div>
+        </form>
+      </div>
+
+      <div class="reqcard reqsuccess" id="reqSuccess" hidden>
+        <div class="big">✅</div>
+        <h3>Solicitação enviada!</h3>
+        <p id="reqSuccessMsg">Recebemos seu pedido. A secretaria vai analisar a disponibilidade e você recebe a confirmação por e-mail.</p>
+        <button class="btn-ghost" id="reqAgain">Fazer outra reserva</button>
+      </div>
+    </div>
+  </div><!-- /viewSolicitar -->
 </div>
 
 <button class="themebtn" id="themebtn" title="Alternar tema">◐</button>
@@ -312,11 +408,21 @@
   </form>
 </dialog>
 
+<dialog id="pinDialog">
+  <form method="dialog" class="dlg" id="pinForm">
+    <h2>Acesso da secretaria</h2>
+    <p class="dsub">Área restrita. Digite o PIN para continuar.</p>
+    <div class="dlg-alert" id="pinAlert">PIN incorreto.</div>
+    <div class="field"><label for="pinInput">PIN</label><input id="pinInput" type="password" autocomplete="off" placeholder="••••"></div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="pinCancel">Cancelar</button><button type="submit" class="btn-primary">Entrar</button></div>
+  </form>
+</dialog>
+
 <script>
 (function(){
   "use strict";
   var CANON=["Auditório","Nave do Templo","Sala 1","Sala 2","Área Gourmet","Sala Verde/Estúdio","Sala de reunião/atendimento","Briefing","Estacionamento"];
-  var PASTORES=["Pr. Shalon","Pr. Camila","Pr. Cleber","Pr. Letícia","Pr. Vinicius","Pr. Emilaine","Pr. William","Pr. Nathalie","Pr. Hamilton","Pr. Brenon","Pr. Fernanda"];
+  var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
   var DEPARTS=["RESET","XTRA","ROCKTES","KIDS","ENCONTRO DELAS","HOMENS","PROFÉTICO","FHOP SOCIAL","USHERS","SALA DE ORAÇÃO","LOUVOR","ADMINISTRATIVO","FINANCEIRO","HOSPITALIDADE","FHOP BOOKS","FHOP STORE","FHOP MUSIC","FHOP SCHOOL","FASCINAÇÃO","ESCOLAS","CENTRO TREINAMENTO","TECNOLOGIAS","COMUNICAÇÃO E MARKETING","PASTORAL","EVENTOS E CONFERÊNCIAS"];
   var NEEDS={
     patrimonio:{label:"Patrimônio · Wanderson",cls:"patr",items:["Cadeiras","Mesas","Outros objetos/utensílios"]},
@@ -326,20 +432,44 @@
   var ALIASES={"auditorio":"Auditório","auditório":"Auditório","novo auditorio":"Auditório","auditório principal":"Auditório","auditorio principal":"Auditório","nave do templo":"Nave do Templo","templo":"Nave do Templo","nave":"Nave do Templo","sala 1":"Sala 1","sala 01":"Sala 1","sala de aula 01":"Sala 1","sala 2":"Sala 2","sala 02":"Sala 2","sala de aula 02":"Sala 2","area gourmet":"Área Gourmet","área gourmet":"Área Gourmet","espaço gourmet":"Área Gourmet","espaco gourmet":"Área Gourmet","gourmet":"Área Gourmet","sala verde":"Sala Verde/Estúdio","sala verde/estúdio":"Sala Verde/Estúdio","estúdio":"Sala Verde/Estúdio","estudio":"Sala Verde/Estúdio","sala de reunião/atendimento":"Sala de reunião/atendimento","sala de reuniões":"Sala de reunião/atendimento","sala de reunioes":"Sala de reunião/atendimento","sala de reunião":"Sala de reunião/atendimento","briefing":"Briefing","estacionamento":"Estacionamento"};
   function norm(raw){if(!raw)return null;var k=raw.toLowerCase().trim().replace(/\s+/g," ");if(ALIASES[k])return ALIASES[k];for(var a in ALIASES){if(k.indexOf(a)>-1)return ALIASES[a];}return null;}
 
+  // ===== Config editável (Admin) — sobrepõe os padrões acima, sem mexer no código =====
+  var LS_CFG="fhop_cfg_v2";
+  var DEFAULT_CFG={spaces:CANON.slice(),pastores:PASTORES.slice(),departs:DEPARTS.slice(),aliases:Object.assign({},ALIASES),
+    resp:{patrimonio:{nome:"Patrimônio · Wanderson",itens:NEEDS.patrimonio.items.slice()},secretaria:{nome:"Secretaria · café e insumos",itens:NEEDS.secretaria.items.slice()},av:{nome:"Audiovisual · Bruna",itens:NEEDS.av.items.slice()}},
+    sources:{
+      form1:"https://docs.google.com/spreadsheets/d/1EC0qIcEng6NOqwH6bxQh2XMQBRcXbkS5vsdsYB1N7DA/edit",
+      form2:"https://docs.google.com/spreadsheets/d/1Ok-fH-7QSLMcDCGlLtJStNi2KTuG-OYR07gxXi8mWts/edit",
+      form3:"https://docs.google.com/spreadsheets/d/1pAwztDJN26Hnralm2ZpHpNqwKm0zZKPSK3a8L9pVyLk/edit",
+      calendar:"fhopchurch@fhop.com"
+    },pin:"fhop2026"};
+  var CONFIG;
+  (function(){try{var v=localStorage.getItem(LS_CFG);CONFIG=v?JSON.parse(v):null;}catch(e){CONFIG=null;}
+    if(!CONFIG)CONFIG=JSON.parse(JSON.stringify(DEFAULT_CFG));
+    ["spaces","pastores","departs","aliases","resp","sources","pin"].forEach(function(k){if(!CONFIG[k])CONFIG[k]=JSON.parse(JSON.stringify(DEFAULT_CFG[k]));});}());
+  function saveCfg(){try{localStorage.setItem(LS_CFG,JSON.stringify(CONFIG));}catch(e){}}
+  function applyCfg(){
+    CANON=CONFIG.spaces;PASTORES=CONFIG.pastores;DEPARTS=CONFIG.departs;ALIASES=CONFIG.aliases;
+    NEEDS={patrimonio:{label:CONFIG.resp.patrimonio.nome,cls:"patr",items:CONFIG.resp.patrimonio.itens},
+      secretaria:{label:CONFIG.resp.secretaria.nome,cls:"secc",items:CONFIG.resp.secretaria.itens},
+      av:{label:CONFIG.resp.av.nome,cls:"av",items:CONFIG.resp.av.itens}};
+  }
+  applyCfg();
+
   var BASE=[
     {id:"e1",t:"conf",title:"Reunião Time XTRA",dept:"XTRA",date:"2026-01-08",s:"19:30",e:"22:00",raw:"Auditório",status:"aprovado",needs:{patrimonio:["Cadeiras","Mesas"],secretaria:["Chaleira Elétrica","Garrafa Térmica"],av:[],obs:"26 cadeiras e mesas"}},
     {id:"e2",t:"conf",title:"Clube do Livro",dept:"FHOP STORE",date:"2026-01-27",s:"19:30",e:"21:30",raw:"Auditório",status:"aprovado",needs:{patrimonio:["Cadeiras","Mesas"],secretaria:["Café"],av:["Projetor"],obs:"20 lugares"}},
     {id:"e3",t:"pend",title:"Ensaio de Louvor",dept:"LOUVOR",date:"2026-01-27",s:"20:00",e:"22:00",raw:"Auditório",status:"pendente",needs:{patrimonio:[],secretaria:[],av:["Sistema de som","Microfone(s)"],obs:""}},
     {id:"e4",t:"pend",title:"Café dos Voluntários",dept:"KIDS",date:"2026-01-28",s:"09:00",e:"12:00",raw:"Área Gourmet",status:"pendente",needs:{patrimonio:["Cadeiras"],secretaria:["Garrafa Térmica","Café","Copos descartáveis"],av:[],obs:"café da manhã p/ 25"}},
-    {id:"e5",t:"conf",title:"Atendimento pastoral",tagType:"pastor",tag:"Pr. Shalon",dept:"PASTORAL",date:"2026-01-28",s:"14:45",e:"18:00",raw:"Sala de Reuniões",status:"aprovado"},
-    {id:"e6",t:"pend",title:"Aconselhamento",tagType:"pastor",tag:"Pr. Camila",dept:"PASTORAL",date:"2026-01-29",s:"00:00",e:"00:00",raw:"",status:"pendente"}
+    {id:"e5",t:"conf",title:"Atendimento pastoral",tagType:"pastor",tag:"Shalon",dept:"PASTORAL",date:"2026-01-28",s:"14:45",e:"18:00",raw:"Sala de Reuniões",status:"aprovado"},
+    {id:"p1",t:"pend",title:"Membro (anônimo) A",motivo:"Aconselhamento espiritual — marcado como urgente",disp:"Terça ou quinta, 14h",dept:"PASTORAL",date:"2026-01-29",s:"00:00",e:"00:00",raw:"",status:"pendente",pastoral:true},
+    {id:"p2",t:"pend",title:"Membro (anônimo) B",motivo:"Casamento e família",disp:"Terça/quinta de manhã, ou após 18h",dept:"PASTORAL",date:"2026-02-02",s:"00:00",e:"00:00",raw:"",status:"pendente",pastoral:true}
   ];
 
-  var LS_EV="fhop_ev_v3",LS_ST="fhop_st_v3";
+  var LS_EV="fhop_ev_v3",LS_ST="fhop_st_v3",LS_AS="fhop_assign_v1";
   function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
   function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
-  var statusMap=load(LS_ST,{}),added=load(LS_EV,[]),EVENTS=[];
-  function rebuild(){EVENTS=BASE.concat(added).map(function(e){return Object.assign({},e,{status:statusMap[e.id]||e.status});});}
+  var statusMap=load(LS_ST,{}),added=load(LS_EV,[]),assignMap=load(LS_AS,{}),EVENTS=[];
+  function rebuild(){EVENTS=BASE.concat(added).map(function(e){var o=Object.assign({},e,{status:statusMap[e.id]||e.status});if(assignMap[e.id]){o.tag=assignMap[e.id];o.tagType="pastor";}return o;});}
   rebuild();
 
   function toMin(h){var p=h.split(":");return (+p[0])*60+(+p[1]);}
@@ -427,7 +557,7 @@
       ?'<button class="btn-sm ok" data-id="'+e.id+'" data-act="aprovado">✓ Aprovar</button><button class="btn-sm crit" data-id="'+e.id+'" data-act="recusado">✕ Recusar</button>'
       :mode==="undo"?'<button class="btn-sm crit" data-id="'+e.id+'" data-act="pendente">✕ Desfazer</button>':"";
     return '<div class="row '+(e.status==="aprovado"?"aprovado":"")+'"><div class="rmain"><span class="rtitle">'+(e.status==="aprovado"?"✓ ":"")+esc(e.title)+'</span>'+
-      '<span class="rmeta">'+tagChip(e)+recChip(e)+(isConf(e)?'<span class="chip crit">⚠ conflito</span>':"")+needChips(e)+'</span></div>'+
+      '<span class="rmeta">'+tagChip(e)+recChip(e)+(e.origem==="solicitante"?'<span class="chip" title="'+esc(e.email||"")+'">por '+esc(e.solicitante)+'</span>':"")+(isConf(e)?'<span class="chip crit">⚠ conflito</span>':"")+needChips(e)+'</span></div>'+
       '<div class="spaces">'+chips+'</div><span class="rwhen mono">'+e.s+'–'+e.e+'</span><div class="rowactions">'+acts+'</div></div>';
   }
   function wireActions(scope){scope.querySelectorAll("[data-act]").forEach(function(b){b.addEventListener("click",function(){setStatus(b.getAttribute("data-id"),b.getAttribute("data-act"));});});}
@@ -463,12 +593,23 @@
   }
   function renderPastoral(){
     var list=EVENTS.filter(function(e){return e.status==="pendente"&&!spacesOf(e).length;});
-    id("pasrows").innerHTML=list.length?list.map(function(e){
-      return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+tagChip(e)+'</span></div>'+
-        '<span class="rwhen mono">'+fmtD(e.date)+'</span><div class="rowactions"><button class="btn-sm ok" data-id="'+e.id+'" data-act="aprovado">✓ Encaminhar</button><button class="btn-sm crit" data-id="'+e.id+'" data-act="recusado">✕ Descartar</button></div></div>';
-    }).join(""):'<div class="empty">Nenhum atendimento pendente.</div>';
+    if(!list.length){id("pasrows").innerHTML='<div class="empty">Nenhum atendimento pendente.</div>';return;}
+    var opts='<option value="">Encaminhar para…</option>'+PASTORES.map(function(p){return '<option>'+esc(p)+'</option>';}).join("");
+    id("pasrows").innerHTML=list.map(function(e){
+      return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span>'+
+        '<span class="rmeta">'+(e.motivo?esc(e.motivo):tagChip(e))+'</span>'+
+        (e.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(e.disp)+'</span>':'')+'</div>'+
+        '<select class="passel" data-id="'+e.id+'">'+opts+'</select>'+
+        '<div class="rowactions"><button class="btn-sm ok" data-assign="'+e.id+'">✓ Encaminhar</button><button class="btn-sm crit" data-id="'+e.id+'" data-act="recusado">✕ Descartar</button></div></div>';
+    }).join("");
+    id("pasrows").querySelectorAll("[data-assign]").forEach(function(b){b.addEventListener("click",function(){
+      var sel=id("pasrows").querySelector('.passel[data-id="'+b.getAttribute("data-assign")+'"]');
+      if(!sel.value){toast("Escolha um pastor");return;}
+      assignPastor(b.getAttribute("data-assign"),sel.value);
+    });});
     wireActions(id("pasrows"));
   }
+  function assignPastor(idv,pastor){assignMap[idv]=pastor;save(LS_AS,assignMap);statusMap[idv]="aprovado";save(LS_ST,statusMap);renderAll();toast("✓ Encaminhado a "+pastor);}
 
   // providências
   function provList(){
@@ -506,7 +647,6 @@
 
   // filtros
   var sf=id("spaceFilter"),df=id("deptFilter");
-  CANON.forEach(function(s){sf.add(new Option(s,s));});DEPARTS.forEach(function(d){df.add(new Option(d,d));});
   function applyF(){activeSpace=sf.value;activeDept=df.value;var h=[];if(activeSpace)h.push("espaço: "+activeSpace);if(activeDept)h.push("dept: "+activeDept);id("filterhint").textContent=h.join(" + ");id("clearFilter").hidden=!(activeSpace||activeDept);renderAll();}
   sf.onchange=applyF;df.onchange=applyF;id("clearFilter").onclick=function(){sf.value="";df.value="";applyF();};
 
@@ -520,22 +660,35 @@
 
   // ===== dialog =====
   var dlg=id("addDialog"),form=id("addForm"),fDept=id("fDept"),fPastor=id("fPastor"),spaceGrid=id("spaceGrid"),needsGrid=id("needsGrid");
-  DEPARTS.forEach(function(d){fDept.add(new Option(d,d));});
-  PASTORES.forEach(function(p){fPastor.add(new Option(p,p));});fPastor.add(new Option("➕ Digitar outro…","__outro__"));
-  CANON.forEach(function(sp){spaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+sp+'</label>');});
-  ["patrimonio","secretaria","av"].forEach(function(cat){
-    var g=NEEDS[cat];needsGrid.insertAdjacentHTML("beforeend",'<div class="needs-h '+(cat==="secretaria"?"secc":cat)+'">'+g.label+'</div>');
-    g.items.forEach(function(it){needsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+cat+'" value="'+esc(it)+'"> '+it+'</label>');});
-  });
+
+  function populateInputs(){
+    // filtros
+    sf.length=1;df.length=1; // mantém a 1ª opção "Todos"
+    CANON.forEach(function(s){sf.add(new Option(s,s));});
+    DEPARTS.forEach(function(d){df.add(new Option(d,d));});
+    // dialog
+    fDept.length=0;DEPARTS.forEach(function(d){fDept.add(new Option(d,d));});
+    fPastor.length=0;PASTORES.forEach(function(p){fPastor.add(new Option(p,p));});
+    spaceGrid.innerHTML="";CANON.forEach(function(sp){spaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
+    needsGrid.innerHTML="";["patrimonio","secretaria","av"].forEach(function(cat){
+      var g=NEEDS[cat];needsGrid.insertAdjacentHTML("beforeend",'<div class="needs-h '+(cat==="secretaria"?"secc":cat)+'">'+esc(g.label)+'</div>');
+      g.items.forEach(function(it){needsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+cat+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});
+    });
+  }
+  populateInputs();
 
   var curType="reserva",curTag="dept";
   function setSeg(s,v){document.querySelectorAll("#"+s+" button").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-k")===v?"true":"false");});}
   id("typeSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;curType=b.getAttribute("data-k");setSeg("typeSeg",curType);syncType();};
   id("tagSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;curTag=b.getAttribute("data-k");setSeg("tagSeg",curTag);syncTag();};
-  fPastor.onchange=function(){if(fPastor.value==="__outro__"){var n=prompt("Nome do pastor:");if(n&&n.trim()){var nome="Pr. "+n.trim().replace(/^pr\.?\s*/i,"");fPastor.add(new Option(nome,nome),fPastor.options[fPastor.options.length-1]);fPastor.value=nome;}else fPastor.selectedIndex=0;}};
   id("fRecur").onchange=function(){id("recWeeksWrap").hidden=!this.checked;};
   function syncTag(){var p=curTag==="pastor";fDept.hidden=p;fPastor.hidden=!p;}
-  function syncType(){id("dlgTitle").textContent=curType==="reserva"?"Adicionar reserva":curType==="evento"?"Adicionar evento":"Adicionar atendimento";id("spaceOpt").textContent=curType==="atendimento"?"(sem sala = fila pastoral)":"";if(curType==="atendimento"&&curTag!=="pastor"){curTag="pastor";setSeg("tagSeg","pastor");syncTag();}}
+  function syncType(){
+    id("dlgTitle").textContent=curType==="reserva"?"Adicionar reserva":curType==="evento"?"Adicionar evento":"Adicionar atendimento";
+    id("spaceOpt").textContent=curType==="atendimento"?"(sem sala = fila pastoral)":"";
+    if(curType==="atendimento"){curTag="pastor";setSeg("tagSeg","pastor");syncTag();id("tagSeg").style.display="none";}
+    else id("tagSeg").style.display="flex";
+  }
   function openDialog(preset){id("dlgAlert").classList.remove("show");form.reset();curType="reserva";curTag="dept";setSeg("typeSeg","reserva");setSeg("tagSeg","dept");syncTag();syncType();id("fStart").value="19:00";id("fEnd").value="21:00";id("fDate").value=preset||selKey;id("recWeeksWrap").hidden=true;spaceGrid.querySelectorAll("input").forEach(function(c){c.checked=false;});needsGrid.querySelectorAll("input").forEach(function(c){c.checked=false;});if(dlg.showModal)dlg.showModal();else dlg.setAttribute("open","");setTimeout(function(){id("fTitle").focus();},40);}
   id("addBtn").onclick=function(){openDialog(selKey);};
   id("cancelBtn").onclick=function(){dlg.close();};
@@ -567,10 +720,151 @@
     toast(reps>1?("✓ "+reps+" ocorrências criadas"):(hit?"⚠ Criado — CONFLITO em "+hit.space:"✓ Criado em Pendentes"));
   });
 
-  id("foot").innerHTML="Protótipo completo • calendário + aprovação + recorrência + insumos. Dados salvos no navegador (localStorage).";
+  // ===== Admin =====
+  function refreshCfg(){saveCfg();applyCfg();populateInputs();renderAll();renderAdmin();}
+  function listSection(key,title,hint,arr,ph){
+    var chips=arr.map(function(v,i){return '<span class="chip-ed">'+esc(v)+'<button data-k="'+key+'" data-i="'+i+'" title="Remover">×</button></span>';}).join("");
+    return '<div class="adminsec"><h3>'+title+'</h3><p class="ahint">'+hint+'</p><div class="chiplist">'+(chips||'<span style="color:var(--ink-faint);font-size:13px">Vazio</span>')+'</div>'+
+      '<div class="addline"><input type="text" data-add="'+key+'" placeholder="'+ph+'"><button class="btn-sm" data-addbtn="'+key+'">+ Adicionar</button></div></div>';
+  }
+  function srcField(key,label,val){
+    return '<div class="field" style="margin-bottom:11px"><label>'+label+'</label><input type="text" data-src="'+key+'" value="'+esc(val||"")+'" placeholder="Cole o link ou ID aqui"></div>';
+  }
+  function renderAdmin(){
+    var b=id("adminBody");if(!b)return;var html="";
+    var sc=CONFIG.sources;
+    html+='<div class="adminsec"><h3>Fontes de dados</h3><p class="ahint">Links das planilhas de respostas e da agenda que alimentam o painel. Na versão ao vivo, é daqui que o sistema lê. Cole o link ou o ID.</p>'+
+      srcField("form1","Planilha — Reserva de espaço (Form 1)",sc.form1)+
+      srcField("form2","Planilha — Atendimento pastoral (Form 2)",sc.form2)+
+      srcField("form3","Planilha — Reserva pastoral (Form 3)",sc.form3)+
+      srcField("calendar","Google Agenda (ID/e-mail ou link)",sc.calendar)+
+      '</div>';
+    html+='<div class="adminsec"><h3>Acesso da secretaria</h3><p class="ahint">PIN para abrir o modo Secretaria <b>neste protótipo</b>. Na versão ao vivo, o acesso é por login do Google (só contas autorizadas) — segurança real, não um PIN.</p><input class="respname" data-pin="1" value="'+esc(CONFIG.pin||"")+'"></div>';
+    html+=listSection("spaces","Espaços","Locais reserváveis. Entram nas opções, no filtro e na checagem de conflito.",CONFIG.spaces,"Novo espaço (ex.: Sala 3)");
+    html+=listSection("pastores","Pastores","Aparecem no seletor quando o responsável é 'Pastor'.",CONFIG.pastores,"Novo pastor (ex.: Pr. Fulano)");
+    html+=listSection("departs","Departamentos","Usados na tag e no filtro por departamento.",CONFIG.departs,"Novo departamento");
+    html+='<div class="adminsec"><h3>Responsáveis de insumos</h3><p class="ahint">Quem prepara cada tipo de item (aparece em Providências) e a lista de itens.</p>';
+    ["patrimonio","secretaria","av"].forEach(function(cat){
+      var r=CONFIG.resp[cat];
+      html+='<div style="margin-bottom:14px"><input class="respname" data-resp="'+cat+'" value="'+esc(r.nome)+'">'+
+        '<div class="chiplist">'+r.itens.map(function(v,i){return '<span class="chip-ed">'+esc(v)+'<button data-respitem="'+cat+'" data-i="'+i+'">×</button></span>';}).join("")+'</div>'+
+        '<div class="addline"><input type="text" data-respadd="'+cat+'" placeholder="Novo item"><button class="btn-sm" data-respaddbtn="'+cat+'">+ Item</button></div></div>';
+    });
+    html+='</div>';
+    var rows=Object.keys(CONFIG.aliases).map(function(a){return '<div class="aliasrow"><span class="al-from">'+esc(a)+'</span><span class="arw">→</span><span class="al-to">'+esc(CONFIG.aliases[a])+'</span><button data-alias="'+esc(a)+'">Remover</button></div>';}).join("");
+    var opts=CONFIG.spaces.map(function(s){return '<option value="'+esc(s)+'">'+esc(s)+'</option>';}).join("");
+    html+='<div class="adminsec"><h3>Dicionário de espaços (de-para)</h3><p class="ahint">Ensina o sistema a reconhecer nomes bagunçados. Esquerda: como aparece escrito. Direita: o espaço oficial.</p>'+
+      rows+'<div class="addline" style="margin-top:10px"><input type="text" id="alFrom" placeholder="como aparece (ex.: espaço gourmet)"><select id="alTo">'+opts+'</select><button class="btn-sm" id="alAdd">+ Adicionar</button></div></div>';
+    b.innerHTML=html;
+  }
+  id("adminBody").addEventListener("click",function(e){
+    var t=e.target,d=t.dataset;if(t.tagName!=="BUTTON")return;
+    if(d.k!=null&&d.i!=null){CONFIG[d.k].splice(+d.i,1);refreshCfg();}
+    else if(d.addbtn){var i1=id("adminBody").querySelector('[data-add="'+d.addbtn+'"]'),v=i1.value.trim();if(v&&CONFIG[d.addbtn].indexOf(v)<0){CONFIG[d.addbtn].push(v);refreshCfg();}}
+    else if(d.respitem){CONFIG.resp[d.respitem].itens.splice(+d.i,1);refreshCfg();}
+    else if(d.respaddbtn){var i2=id("adminBody").querySelector('[data-respadd="'+d.respaddbtn+'"]'),v2=i2.value.trim();if(v2){CONFIG.resp[d.respaddbtn].itens.push(v2);refreshCfg();}}
+    else if(d.alias!=null){delete CONFIG.aliases[d.alias];refreshCfg();}
+    else if(t.id==="alAdd"){var f=id("alFrom").value.trim().toLowerCase(),to=id("alTo").value;if(f){CONFIG.aliases[f]=to;refreshCfg();}}
+  });
+  id("adminBody").addEventListener("change",function(e){
+    var d=e.target.dataset;
+    if(d.resp){CONFIG.resp[d.resp].nome=e.target.value.trim()||CONFIG.resp[d.resp].nome;saveCfg();applyCfg();populateInputs();renderAll();}
+    else if(d.src){CONFIG.sources[d.src]=e.target.value.trim();saveCfg();toast("✓ Fonte salva");}
+    else if(d.pin){CONFIG.pin=e.target.value.trim()||CONFIG.pin;saveCfg();toast("✓ PIN salvo");}
+  });
+  var resetArmed=false;
+  id("resetCfg").onclick=function(){
+    if(!resetArmed){resetArmed=true;this.textContent="Clique de novo para confirmar";var self=this;setTimeout(function(){resetArmed=false;self.textContent="↺ Restaurar padrão";},3000);return;}
+    CONFIG=JSON.parse(JSON.stringify(DEFAULT_CFG));refreshCfg();resetArmed=false;this.textContent="↺ Restaurar padrão";toast("↺ Configurações restauradas");
+  };
+  renderAdmin();
+
+  id("foot").innerHTML="Protótipo completo • calendário + aprovação + recorrência + insumos + admin. Dados salvos no navegador (localStorage).";
   id("themebtn").onclick=function(){var c=document.documentElement.getAttribute("data-theme");document.documentElement.setAttribute("data-theme",c==="dark"?"light":c==="light"?"dark":(matchMedia("(prefers-color-scheme:dark)").matches?"light":"dark"));};
   var toastEl=id("toast"),tT;function toast(m){toastEl.textContent=m;toastEl.classList.add("show");clearTimeout(tT);tT=setTimeout(function(){toastEl.classList.remove("show");},2400);}
 
+  // ===== Modo solicitante =====
+  var rDept=id("rDept"),rPastor=id("rPastor"),rSpaceGrid=id("rSpaceGrid"),rNeedsGrid=id("rNeedsGrid");
+  function populateReq(){
+    rDept.length=0;DEPARTS.forEach(function(d){rDept.add(new Option(d,d));});
+    rPastor.length=0;PASTORES.forEach(function(p){rPastor.add(new Option(p,p));});
+    rSpaceGrid.innerHTML="";CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
+    rNeedsGrid.innerHTML="";["patrimonio","secretaria","av"].forEach(function(cat){
+      var g=NEEDS[cat];rNeedsGrid.insertAdjacentHTML("beforeend",'<div class="needs-h '+(cat==="secretaria"?"secc":cat)+'">'+esc(g.label)+'</div>');
+      g.items.forEach(function(it){rNeedsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+cat+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});
+    });
+  }
+  var rTag="dept";
+  id("rTagSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;rTag=b.getAttribute("data-k");document.querySelectorAll("#rTagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")===rTag?"true":"false");});rDept.hidden=rTag==="pastor";rPastor.hidden=rTag!=="pastor";};
+
+  function reqChosen(){var a=[];rSpaceGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);});return a;}
+  function checkReqConflict(){
+    var banner=id("rBanner"),date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,chosen=reqChosen();
+    banner.className="banner";
+    if(!date||!s||!en||toMin(en)<=toMin(s)||!chosen.length){banner.classList.remove("show");return;}
+    var canon=chosen.map(norm).filter(Boolean);
+    var probe={date:date,s:s,e:en};
+    var hits=[];
+    EVENTS.filter(function(e){return e.status==="aprovado";}).forEach(function(e){
+      if(!overlap(probe,e))return;
+      spacesOf(e).forEach(function(sp){if(canon.indexOf(sp)>-1)hits.push({space:sp,ev:e});});
+    });
+    banner.classList.add("show");
+    if(!hits.length){banner.classList.add("ok");banner.innerHTML="✓ Espaço(s) livre(s) nesse horário.<span class='bsub'>Você pode enviar — a secretaria confirma.</span>";}
+    else{
+      banner.classList.add("bad");
+      var seen={},lines=hits.filter(function(h){var k=h.space+h.ev.title;if(seen[k])return false;seen[k]=1;return true;})
+        .map(function(h){return "“"+esc(h.space)+"” já tem <b>"+esc(h.ev.title)+"</b> ("+h.ev.s+"–"+h.ev.e+")";});
+      banner.innerHTML="⚠ Conflito nesse horário:<span class='bsub'>"+lines.join("<br>")+"<br><br>Você ainda pode enviar, mas provavelmente será recusado. Tente outro horário ou espaço.</span>";
+    }
+  }
+  ["rDate","rStart","rEnd"].forEach(function(x){id(x).addEventListener("input",checkReqConflict);});
+  rSpaceGrid.addEventListener("change",checkReqConflict);
+
+  id("reqForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    var name=id("rName").value.trim(),email=id("rEmail").value.trim(),title=id("rTitle").value.trim();
+    var date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value;
+    var tag=rTag==="pastor"?rPastor.value:rDept.value,chosen=reqChosen();
+    if(!name||!title||!date){toast("Preencha nome, evento e data.");return;}
+    if(!chosen.length){toast("Escolha ao menos um espaço.");return;}
+    if(toMin(en)<=toMin(s)){toast("O término deve ser depois do início.");return;}
+    var needs={patrimonio:[],secretaria:[],av:[],obs:id("rObs").value.trim()};
+    rNeedsGrid.querySelectorAll("input:checked").forEach(function(c){needs[c.getAttribute("data-cat")].push(c.value);});
+    var ev={id:"u"+Math.random().toString(36).slice(2,8)+(Date.now()%100000),t:"pend",kind:"reserva",title:title,
+      tagType:rTag,tag:rTag==="pastor"?tag:undefined,dept:rTag==="dept"?tag:"PASTORAL",
+      solicitante:name,email:email,date:date,s:s,e:en,raw:chosen.join(", "),status:"pendente",needs:needs,origem:"solicitante"};
+    added.push(ev);save(LS_EV,added);renderAll();
+    var conf=conflicts.some(function(c){return c.pend.id===ev.id;});
+    id("reqSuccessMsg").innerHTML=conf
+      ?"Recebemos seu pedido — mas <b>havia conflito</b> no horário escolhido, então pode ser que a secretaria peça um ajuste. Você recebe o retorno por e-mail."
+      :"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
+    id("reqFormCard").hidden=true;id("reqSuccess").hidden=false;
+  });
+  id("reqAgain").onclick=function(){id("reqForm").reset();rTag="dept";rDept.hidden=false;rPastor.hidden=true;document.querySelectorAll("#rTagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")==="dept"?"true":"false");});id("rStart").value="19:00";id("rEnd").value="21:00";id("rBanner").className="banner";id("reqSuccess").hidden=true;id("reqFormCard").hidden=false;};
+
+  // toggle de modo (Secretaria protegida por PIN neste protótipo)
+  var secOK=false;try{secOK=sessionStorage.getItem("fhop_sec_ok")==="1";}catch(e){}
+  function setMode(m){
+    document.querySelectorAll("#modebar button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-m")===m?"true":"false");});
+    var req=m==="req";id("viewSecretaria").hidden=req;id("viewSolicitar").hidden=!req;
+    if(req){populateReq();if(!id("rDate").value)id("rDate").value="2026-01-27";checkReqConflict();}else renderAll();
+  }
+  var pinDlg=id("pinDialog");
+  function askPin(){id("pinAlert").classList.remove("show");id("pinInput").value="";if(pinDlg.showModal)pinDlg.showModal();else pinDlg.setAttribute("open","");setTimeout(function(){id("pinInput").focus();},40);}
+  id("pinCancel").onclick=function(){pinDlg.close();};
+  id("pinForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    if(id("pinInput").value===String(CONFIG.pin)){secOK=true;try{sessionStorage.setItem("fhop_sec_ok","1");}catch(_){}pinDlg.close();setMode("sec");}
+    else id("pinAlert").classList.add("show");
+  });
+  id("modebar").addEventListener("click",function(e){
+    var b=e.target.closest("button");if(!b)return;var m=b.getAttribute("data-m");
+    if(m==="sec"&&!secOK){askPin();return;}
+    setMode(m);
+  });
+
   renderAll();
+  setMode("req"); // abre na visão pública; Secretaria exige PIN
 })();
 </script>
