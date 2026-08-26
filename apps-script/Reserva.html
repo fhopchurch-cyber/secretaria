@@ -59,12 +59,13 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="logohead">
+  <div class="logohead" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
     <svg class="logo" viewBox="0 0 500 92" role="img" aria-label="fhop church" preserveAspectRatio="xMidYMid meet">
       <text x="2" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ink)">fhop</text>
       <rect x="170" y="6" width="322" height="80" rx="20" style="fill:var(--ink)"></rect>
       <text x="192" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ground)">church</text>
     </svg>
+    <button type="button" id="loginBtn" style="flex:0 0 auto;white-space:nowrap;font:inherit;font-weight:700;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:9px 14px;cursor:pointer">🔒 Faça login</button>
   </div>
 
   <div class="card" id="formCard">
@@ -78,9 +79,8 @@
         <div class="field"><label for="rEmail">Seu e-mail</label><input id="rEmail" type="email" placeholder="para receber a confirmação"></div>
       </div>
       <div class="field"><label for="rTitle">Evento / motivo</label><input id="rTitle" type="text" placeholder="Ex.: Reunião de equipe" required></div>
-      <div class="field"><label>Responsável</label>
-        <div class="seg" id="tagSeg" style="margin-bottom:8px"><button type="button" data-k="dept" aria-pressed="true">Departamento</button><button type="button" data-k="pastor" aria-pressed="false">Pastor</button></div>
-        <select id="rDept"></select><select id="rPastor" hidden></select>
+      <div class="field"><label for="rDept">Departamento responsável</label>
+        <select id="rDept"></select>
       </div>
       <div class="grid2">
         <div class="field"><label for="rDate">Data</label><input id="rDate" type="date" required></div>
@@ -90,17 +90,31 @@
 
       <div class="banner" id="banner"></div>
 
-      <details><summary>Precisa de algo? (cadeiras, café, som…)</summary>
+      <details open><summary>Precisa de algo? (cadeiras, café, som…)</summary>
         <div class="needs" id="needsGrid"></div>
-        <div class="field" style="margin:10px 0 12px"><label for="rObs">Observações</label><input id="rObs" type="text" placeholder="Ex.: 50 cadeiras, projetor"></div>
+        <div class="field" style="margin:12px 0 4px"><label for="rPatrim">🪑 Patrimônio (Wanderson)</label><textarea id="rPatrim" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas, 1 púlpito…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+        <div class="field" style="margin:10px 0 4px"><label for="rAV">🎧 Audiovisual (Bruna)</label><textarea id="rAV" rows="2" placeholder="Ex.: 2 microfones, projetor, som ambiente, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+        <div class="field" style="margin:10px 0 12px"><label for="rObs">Outras observações</label><input id="rObs" type="text" placeholder="Ex.: café para 30 pessoas"></div>
       </details>
 
       <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
     </form>
     <p class="foot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.</p>
-    <div style="margin-top:12px"><a id="admLink" href="#" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;color:var(--ink);font-weight:700;font-size:14px;text-decoration:none;border:1px solid var(--line-strong);background:var(--surface);border-radius:11px;padding:12px">🔒 Encaminhar para a Central de Reservas</a>
-    <p id="admHint" class="foot" style="margin-top:6px;display:none">Entre com o e-mail <strong>fhopchurch</strong> para acessar o painel da secretaria.</p></div>
   </div>
+
+  <dialog id="loginDialog" style="border:0;border-radius:16px;padding:0;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <form id="loginForm" method="dialog" style="padding:22px 22px 18px">
+      <h2 style="margin:0 0 4px;font-size:20px">Entrar</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--ink-faint)">Acesso da secretaria à Central de Reservas.</p>
+      <div class="field" style="margin-bottom:12px"><label for="lgEmail">E-mail</label><input id="lgEmail" type="email" autocomplete="username" placeholder="email@email.com" required></div>
+      <div class="field" style="margin-bottom:14px"><label for="lgPass">Senha</label><input id="lgPass" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+      <p id="lgErr" style="display:none;margin:0 0 12px;font-size:13px;color:#c0392b;font-weight:600"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button type="button" id="lgCancel" class="btn-ghost">Cancelar</button>
+        <button type="submit" class="btn-primary" id="lgSubmit" style="width:auto;padding:11px 20px">Entrar</button>
+      </div>
+    </form>
+  </dialog>
 
   <div class="card success" id="success" hidden>
     <div class="big">✅</div>
@@ -121,16 +135,10 @@ function id(x){return document.getElementById(x);}
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 
-var rDept=id("rDept"),rPastor=id("rPastor"),rSpaceGrid=id("rSpaceGrid"),needsGrid=id("needsGrid");
+var rDept=id("rDept"),rSpaceGrid=id("rSpaceGrid"),needsGrid=id("needsGrid");
 DEPARTS.forEach(function(d){rDept.add(new Option(d,d));});
-PASTORES.forEach(function(p){rPastor.add(new Option(p,p));});
 CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
 Object.keys(NEEDS).forEach(function(cat){needsGrid.insertAdjacentHTML("beforeend",'<div class="nh">'+esc(cat)+'</div>');NEEDS[cat].forEach(function(it){needsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});});
-
-var tagMode="dept";
-id("tagSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;tagMode=b.getAttribute("data-k");
-  document.querySelectorAll("#tagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")===tagMode?"true":"false");});
-  rDept.hidden=tagMode==="pastor";rPastor.hidden=tagMode!=="pastor";};
 
 function chosen(){var a=[];rSpaceGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);});return a;}
 
@@ -154,8 +162,21 @@ rSpaceGrid.addEventListener("change",checkConflict);
 
 // busca a ocupação confirmada (só espaço+horário, sem nomes)
 google.script.run.withSuccessHandler(function(o){OCUP=o||[];checkConflict();}).withFailureHandler(function(){OCUP=[];}).getOcupacao();
-// link para a área da secretaria — abre o seletor de conta Google e vai para o painel
-google.script.run.withSuccessHandler(function(u){var a=id("admLink");if(u){a.href="https://accounts.google.com/AccountChooser?continue="+encodeURIComponent(u);id("admHint").style.display="block";}else{a.href="https://accounts.google.com/AccountChooser?continue="+encodeURIComponent(location.href);id("admHint").innerHTML="Faça login com <strong>fhopchurch</strong>. Se o painel não abrir, peça à secretaria o link do painel (configurável em ⚙ Admin).";id("admHint").style.display="block";}}).withFailureHandler(function(){}).getLinkPainel();
+// ===== Login da secretaria (mesmo link) =====
+var lgDlg=id("loginDialog");
+function lgErr(m){var e=id("lgErr");e.textContent=m;e.style.display=m?"block":"none";}
+id("loginBtn").onclick=function(){lgErr("");id("lgPass").value="";if(lgDlg.showModal)lgDlg.showModal();setTimeout(function(){id("lgEmail").focus();},50);};
+id("lgCancel").onclick=function(){lgDlg.close();};
+id("loginForm").addEventListener("submit",function(e){
+  e.preventDefault();lgErr("");
+  var em=id("lgEmail").value.trim(),pw=id("lgPass").value;
+  if(!em||!pw){lgErr("Informe e-mail e senha.");return;}
+  var btn=id("lgSubmit");btn.disabled=true;btn.textContent="Entrando…";
+  google.script.run
+    .withSuccessHandler(function(r){ if(r&&r.url){ try{ window.top.location.href=r.url; }catch(_){ window.location.href=r.url; } } else { btn.disabled=false;btn.textContent="Entrar";lgErr("Não foi possível abrir o painel."); } })
+    .withFailureHandler(function(err){ btn.disabled=false;btn.textContent="Entrar";lgErr((err&&err.message)?err.message:"E-mail ou senha inválidos."); })
+    .login(em,pw);
+});
 
 id("form").addEventListener("submit",function(e){
   e.preventDefault();
@@ -164,10 +185,10 @@ id("form").addEventListener("submit",function(e){
   if(!name||!title||!date){alert("Preencha nome, evento e data.");return;}
   if(!sp.length){alert("Escolha ao menos um espaço.");return;}
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
-  var needs={obs:id("rObs").value.trim()};
+  var needs={obs:id("rObs").value.trim(),textos:{patrim:id("rPatrim").value.trim(),av:id("rAV").value.trim()}};
   needsGrid.querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
   var conf=id("banner").classList.contains("bad");
-  var data={title:title,tipo:"reserva",dept:tagMode==="dept"?rDept.value:"",tagPastor:tagMode==="pastor"?rPastor.value:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
+  var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
   id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
   google.script.run
     .withSuccessHandler(function(){
@@ -177,7 +198,7 @@ id("form").addEventListener("submit",function(e){
     .withFailureHandler(function(err){id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));})
     .enviarReserva(data);
 });
-id("again").onclick=function(){id("form").reset();tagMode="dept";rDept.hidden=false;rPastor.hidden=true;document.querySelectorAll("#tagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")==="dept"?"true":"false");});id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
+id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
 </script>
 </body>
 </html>

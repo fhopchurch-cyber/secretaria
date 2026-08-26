@@ -54,19 +54,23 @@ function cfg(){
     pastores: stored.pastores || PASTORES_DEF.slice(),
     responsaveis: stored.responsaveis || RESP_DEF.slice(),
     aliases: Object.assign({}, ALIASES, stored.aliases||{}),
-    linkPainel: stored.linkPainel || ''
+    linkPainel: stored.linkPainel || '',
+    painelUser: stored.painelUser || 'fhopchurch@fhop.com',
+    painelPass: stored.painelPass || 'fhopchurch1234'
   };
   return _CFG;
 }
 function getConfig(){ return cfg(); }
 function getLinkPainel(){ return cfg().linkPainel || ''; } // exposto à página pública (só a URL)
-function getMe(){
+function getMe(token){
   var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
-  return { email: email, admin: cfg().allowlist.indexOf(email) > -1 };
+  var admin = (cfg().allowlist.indexOf(email) > -1) || validPainelToken_(token);
+  return { email: email || (validPainelToken_(token) ? cfg().painelUser : ''), admin: admin };
 }
-function saveConfig(novo){
+function saveConfig(novo, token){
   var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
-  if(cfg().allowlist.indexOf(email) < 0) throw new Error('Apenas a secretaria pode alterar as configurações.');
+  var ok = (cfg().allowlist.indexOf(email) > -1) || validPainelToken_(token);
+  if(!ok) throw new Error('Apenas a secretaria pode alterar as configurações.');
   var ss = getCentralSS_();
   var sh = ss.getSheetByName('config') || ss.insertSheet('config');
   sh.getRange('A1').setValue(JSON.stringify(novo));
@@ -83,15 +87,40 @@ function norm(raw){
   return null;
 }
 
-/** Serve o painel (autorizados) ou a página pública de reserva (demais/param). */
+/** Um único link: a página de reserva serve todo mundo; com login (senha) abre o painel. */
 function doGet(e){
   var p = (e && e.parameter && e.parameter.p) || '';
+  var k = (e && e.parameter && e.parameter.k) || '';
   var email = ''; try { email = Session.getActiveUser().getEmail() || ''; } catch(_){}
-  var autorizado = cfg().allowlist.indexOf(email) > -1;
-  var arquivo = (p === 'reserva' || !autorizado) ? 'Reserva' : 'Index';
-  return HtmlService.createHtmlOutputFromFile(arquivo)
-    .setTitle(arquivo === 'Reserva' ? 'Reserva de Espaço · FHOP' : 'Central de Reservas FHOP')
+  var porGoogle = cfg().allowlist.indexOf(email) > -1;      // conta fhopchurch logada = acesso direto
+  var porSenha  = (p === 'painel') && validPainelToken_(k); // login por senha na própria página
+  var autorizado = porGoogle || porSenha;
+  var arquivo = (p !== 'reserva' && autorizado) ? 'Index' : 'Reserva';
+  if(arquivo === 'Index'){
+    var t = HtmlService.createTemplateFromFile('Index');
+    t.AUTH = _painelToken_(); // prova de que passou pelo login (senha) ou pela conta autorizada
+    return t.evaluate()
+      .setTitle('Central de Reservas FHOP')
+      .addMetaTag('viewport','width=device-width, initial-scale=1');
+  }
+  return HtmlService.createHtmlOutputFromFile('Reserva')
+    .setTitle('Reserva de Espaço · FHOP')
     .addMetaTag('viewport','width=device-width, initial-scale=1');
+}
+
+// ---- Login por senha (mesmo link para reserva e painel) ----
+function getSelfUrl_(){ try { return ScriptApp.getService().getUrl(); } catch(e){ return cfg().linkPainel || ''; } }
+function _painelToken_(){
+  var seed = 'fhop::' + String(cfg().painelUser).toLowerCase() + '::' + String(cfg().painelPass);
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed));
+}
+function validPainelToken_(k){ return !!k && k === _painelToken_(); }
+/** Valida e-mail+senha; devolve a URL do painel (mesmo app, com token). */
+function login(email, pass){
+  var okUser = String(email||'').trim().toLowerCase() === String(cfg().painelUser).toLowerCase();
+  var okPass = String(pass||'') === String(cfg().painelPass);
+  if(!okUser || !okPass) throw new Error('E-mail ou senha inválidos.');
+  return { ok:true, url: getSelfUrl_() + '?p=painel&k=' + encodeURIComponent(_painelToken_()) };
 }
 
 /** Acha o índice da coluna cujo cabeçalho contém o texto (case-insensitive) */
@@ -100,6 +129,11 @@ function col(headers, needle){
   for(var i=0;i<headers.length;i++){
     if(String(headers[i]).toLowerCase().indexOf(needle) > -1) return i;
   }
+  return -1;
+}
+
+function col2(headers, needles){
+  for(var n=0;n<needles.length;n++){ var i=col(headers, needles[n]); if(i>-1) return i; }
   return -1;
 }
 
@@ -201,7 +235,8 @@ function getDados(){
         title: str(rw[cs.title]), dept: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]),
         solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]),
         date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
-        spaces: splitSpaces(rw[cs.spaces])
+        spaces: splitSpaces(rw[cs.spaces]),
+        needs: (function(){ try{ return rw[cs.needs] ? JSON.parse(rw[cs.needs]) : null; }catch(e){ return null; } })()
       });
     }
   }catch(err){ out.erros.push('Reservas online: '+err); }
@@ -209,7 +244,7 @@ function getDados(){
   // ---- Form 2: Atendimento pastoral (fila de encaminhamento) ----
   try{
     var v2 = readSheet(cfg().fontes.form2_pastoral), h2 = v2[0];
-    var c2 = { carimbo: col(h2,'carimbo'), nome: col(h2,'nome completo'), motivo: col(h2,'aconselhamento'), dias: col(h2,'dias dispon'), hora: col(h2,'horário dispon') };
+    var c2 = { carimbo: col(h2,'carimbo'), nome: col(h2,'nome completo'), motivo: col(h2,'aconselhamento'), dias: col(h2,'dias dispon'), hora: col(h2,'horário dispon'), email: col2(h2,['e-mail','email','endereço de e-mail']) };
     for(var k=1;k<v2.length;k++){
       var r2 = v2[k]; if(!r2[c2.nome]) continue;
       var dp = c2.carimbo>-1 ? fmtDate(r2[c2.carimbo]) : '';
@@ -218,6 +253,7 @@ function getDados(){
         key:'P2-'+k,
         nome: str(r2[c2.nome]),
         motivo: str(r2[c2.motivo]),
+        email: c2.email>-1 ? str(r2[c2.email]) : '',
         disp: [str(r2[c2.dias]), str(r2[c2.hora])].filter(String).join(' — '),
         date: dp
       });
@@ -340,12 +376,37 @@ function notificarResponsaveis_(req){
   var local = (req.spaces||[]).join(', ');
   if(req.tagPastor){ sendMail_(pastorEmail_(req.tagPastor), 'Reserva aprovada: '+req.title,
     'Olá '+req.tagPastor+',\n\nReserva aprovada:\n'+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
-  if(req.needs){
-    if(req.needs.patrimonio && req.needs.patrimonio.length){ sendMail_(respEmail_('patrim'), 'Patrimônio · '+req.title,
-      'Preparar: '+req.needs.patrimonio.join(', ')+(req.needs.obs?('\nObs.: '+req.needs.obs):'')+'\n\nEvento: '+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
-    if(req.needs.av && req.needs.av.length){ sendMail_(respEmail_('audio'), 'Audiovisual · '+req.title,
-      'Preparar: '+req.needs.av.join(', ')+'\n\nEvento: '+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
-  }
+  if(!req.needs) return;
+  var obs = req.needs.obs || '';
+  var textos = req.needs.textos || {};
+  var contato = (req.solicitante ? ('Solicitante: '+req.solicitante+'\n') : '') + (req.email ? ('Contato: '+req.email+'\n') : '');
+  // Agrupa por área: cada uma recebe SÓ o que é dela (itens marcados + campo de texto próprio).
+  var areas = {
+    patrim: { rotulo:'Patrimônio', itens:[], txt: textos.patrim || '' },
+    audio:  { rotulo:'Audiovisual', itens:[], txt: textos.av || '' },
+    secret: { rotulo:'Secretaria', itens:[], txt: '' }
+  };
+  Object.keys(req.needs).forEach(function(cat){
+    if(cat === 'obs' || cat === 'textos') return;
+    var itens = req.needs[cat]; if(!itens || !itens.length) return;
+    var low = String(cat).toLowerCase();
+    var a = low.indexOf('patrim') > -1 ? 'patrim'
+          : (low.indexOf('audio') > -1 ? 'audio'
+          : ((low.indexOf('secret') > -1 || low.indexOf('café') > -1 || low.indexOf('cafe') > -1) ? 'secret' : null));
+    if(a && areas[a]) areas[a].itens = areas[a].itens.concat(itens);
+  });
+  ['patrim','audio','secret'].forEach(function(a){
+    var A = areas[a];
+    if(!A.itens.length && !A.txt) return;      // nada para essa área → não envia
+    var to = respEmail_(a); if(!to) return;
+    var corpo = 'Uma reserva foi confirmada e precisa de você.\n\n' +
+      'Evento: ' + req.title + '\nQuando: ' + quando + '\nLocal: ' + local + '\n' + contato +
+      (A.itens.length ? ('\nItens marcados:\n- ' + A.itens.join('\n- ') + '\n') : '') +
+      (A.txt ? ('\nPedido (' + A.rotulo + '):\n' + A.txt + '\n') : '') +
+      (obs ? ('\nObservações gerais: ' + obs + '\n') : '') +
+      '\n— Central de Reservas FHOP';
+    sendMail_(to, A.rotulo + ' · ' + req.title, corpo);
+  });
 }
 
 /** Encaminhar atendimento pastoral COM data/hora/local → cria evento na agenda + avisa o pastor. */
@@ -454,6 +515,22 @@ function excluir(item){
   }
   upsertEstado_(item.key, { status:'excluido', eventId:'' });
   return { ok:true };
+}
+
+/** Excluir em lote: recebe uma lista de keys, remove eventos e marca como excluído. */
+function excluirLote(keys){
+  if(!keys || !keys.length) return { ok:true, n:0 };
+  var estado = readEstado_(), cal = null, n = 0;
+  for(var i=0;i<keys.length;i++){
+    var k = keys[i]; if(!k) continue;
+    var st = estado[k];
+    if(st && st.eventId){
+      try { if(!cal) cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+    }
+    upsertEstado_(k, { status:'excluido', eventId:'' });
+    n++;
+  }
+  return { ok:true, n:n };
 }
 
 /** Desfazer: remove o evento criado e volta a pendente (limpa exclusão também). */

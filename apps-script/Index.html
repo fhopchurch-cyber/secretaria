@@ -170,7 +170,6 @@
     <div class="field"><label for="aTitle" id="aTitleLbl">Título / evento</label><input id="aTitle" type="text" placeholder="Ex.: Reunião de equipe"></div>
     <div class="field" id="aMotivoWrap" hidden><label for="aMotivo">Motivo (opcional)</label><input id="aMotivo" type="text" placeholder="Ex.: aconselhamento, casamento…"></div>
     <div class="field" id="aRespWrap"><label>Responsável</label>
-      <div class="seg" id="aTagSeg" style="margin-bottom:8px"><button type="button" data-k="dept" aria-pressed="true">Departamento</button><button type="button" data-k="pastor" aria-pressed="false">Pastor</button></div>
       <select id="aDept"></select><select id="aPastor" hidden></select>
     </div>
     <div class="grid2" id="aWhenWrap">
@@ -202,6 +201,7 @@
 var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 var MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 var MESAB=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+var AUTH="<?= AUTH ?>";
 var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000, calView="mes", ME={email:"",admin:false}, CFG=null;
 
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
@@ -254,6 +254,20 @@ function wireActions(scope){
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){serverAct("desfazer",{key:b.getAttribute("data-desfazerpas")},"↩ Reaberto");};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
+  wireBulk(scope);
+}
+function bulkBar(){
+  return '<div class="toolbar" style="align-items:center"><label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="selAll" style="width:auto">Selecionar todos</label><span class="summ" id="bulkN" style="margin:0">0 selecionado(s)</span><button class="btn-sm crit" id="bulkDel" disabled>🗑 Excluir selecionados</button></div>';
+}
+function wireBulk(scope){
+  var bd=scope.querySelector("#bulkDel"); if(!bd) return;
+  var boxes=scope.querySelectorAll(".selbox"), bn=scope.querySelector("#bulkN"), sa=scope.querySelector("#selAll");
+  function keysSel(){var k=[];boxes.forEach(function(b){if(b.checked)k.push(b.getAttribute("data-sel"));});return k;}
+  function upd(){var k=keysSel();bn.textContent=k.length+" selecionado(s)";bd.disabled=!k.length;if(sa)sa.checked=(k.length===boxes.length&&boxes.length>0);}
+  boxes.forEach(function(b){b.onchange=upd;});
+  if(sa)sa.onchange=function(){boxes.forEach(function(b){b.checked=sa.checked;});upd();};
+  bd.onclick=function(){var k=keysSel();if(!k.length||BUSY)return;BUSY=true;toast("Excluindo "+k.length+"…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("🗑 "+k.length+" removido(s) — planilhas intactas");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).excluirLote(k);};
+  upd();
 }
 
 function openEdit(k){
@@ -285,7 +299,7 @@ function openAdd(){
   document.getElementById("aSpaceGrid").innerHTML=cfgEspacos().map(function(sp){return '<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>';}).join("");
   document.getElementById("aTitle").value="";document.getElementById("aDate").value=keyOf(cur);document.getElementById("aStart").value="19:00";document.getElementById("aEnd").value="21:00";document.getElementById("aAprovar").checked=false;
   document.getElementById("aMotivo").value="";
-  addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");setSegBtns("aTagSeg","dept");dep.hidden=false;pas.hidden=true;applyAddType();
+  addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");dep.hidden=false;pas.hidden=true;applyAddType();
   var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
 }
 function applyAddType(){
@@ -294,7 +308,6 @@ function applyAddType(){
   addTag=isAt?"pastor":"dept";
   document.getElementById("aMotivoWrap").hidden=!isAt;
   document.getElementById("aRespWrap").hidden=false;
-  document.getElementById("aTagSeg").hidden=true; // sem alternância: o tipo já define o responsável
   document.getElementById("aDept").hidden=isAt;
   document.getElementById("aPastor").hidden=!isAt;
   document.querySelector("#aRespWrap label").textContent=isAt?"Pastor responsável":"Departamento";
@@ -336,7 +349,7 @@ function openEnc(k){
   var lo=document.getElementById("encLocal");lo.innerHTML="<option value=''>(sem sala)</option>";cfgEspacos().forEach(function(x){lo.add(new Option(x,x));});
   try{lo.value="Sala de reunião/atendimento";}catch(e){}
   document.getElementById("encSub").textContent="Membro: "+(p.nome||"")+(p.motivo?(" · "+p.motivo):"");
-  document.getElementById("encDate").value=keyOf(cur);document.getElementById("encStart").value="14:00";document.getElementById("encEnd").value="15:00";document.getElementById("encEmail").value="";
+  document.getElementById("encDate").value=keyOf(cur);document.getElementById("encStart").value="14:00";document.getElementById("encEnd").value="15:00";document.getElementById("encEmail").value=p.email||"";
   var d=document.getElementById("encDialog");if(d.showModal)d.showModal();
 }
 document.getElementById("encCancel").onclick=function(){document.getElementById("encDialog").close();};
@@ -519,12 +532,12 @@ function pedidosHtml(){
   var rec=DATA.requests.filter(function(r){return r.status==="recusado";}).length;
   var summ='<p class="summ">'+pend.length+' pendente(s) · '+apr+' aprovado(s) · '+rec+' recusado(s). Aprovar cria o evento na agenda e convida o e-mail do solicitante.</p>';
   if(!pend.length)return summ+'<div class="empty">Nenhum pedido pendente.</div>';
-  return summ+'<div class="rows">'+pend.map(function(r){
+  return summ+bulkBar()+'<div class="rows">'+pend.map(function(r){
     var chips=r.spaces.length?r.spaces.map(function(s){return '<span class="chip space">'+esc(s)+'</span>';}).join(""):'<span class="chip">sem espaço reconhecido</span>';
     var tag=r.tagPastor?'<span class="chip">✝ '+esc(r.tagPastor)+'</span>':(r.dept?'<span class="chip">'+esc(r.dept)+'</span>':'');
     var who=r.solicitante?'<span class="chip">por '+esc(r.solicitante)+'</span>':'';
     var cf=reqInConflict(r)?'<span class="chip crit">⚠ conflito</span>':'';
-    return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
+    return '<div class="row"><input type="checkbox" class="selbox" data-sel="'+esc(r.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
   }).join("")+'</div>';
 }
 function conflitosHtml(){
@@ -544,14 +557,14 @@ function pastoralHtml(){
   if(!list.length)return bar+'<div class="empty">Nenhum atendimento.</div>';
   // aguardando primeiro, depois encaminhados
   list.sort(function(a,b){var sa=a.status==="encaminhado"?1:0,sb=b.status==="encaminhado"?1:0;return sa-sb;});
-  return bar+'<div class="rows">'+list.map(function(p){
+  return bar+bulkBar()+'<div class="rows">'+list.map(function(p){
     var st=p.status||"pendente";
     var isEnc=st==="encaminhado";
     var chip=isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>';
     var acts=isEnc
       ? '<div class="rowactions"><button class="btn-sm" data-enc2="'+esc(p.key)+'">✎ Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : '<div class="rowactions"><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
-    return '<div class="row'+(isEnc?' aprovado':'')+'"><div class="rmain"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
+    return '<div class="row'+(isEnc?' aprovado':'')+'"><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
   }).join("")+'</div>';
 }
 
@@ -599,7 +612,7 @@ function wireAdmin(scope){
   scope.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-add");var inp=scope.querySelector('[data-addinp="'+key+'"]');var v=inp.value.trim();if(v&&ADMIN[key].indexOf(v)<0){ADMIN[key].push(v);}reRenderAdmin();};});
   scope.querySelectorAll("[data-delrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-delrow")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
   scope.querySelectorAll("[data-addrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-addrow");ADMIN[key].push(key==="pastores"?{nome:"",email:""}:{papel:"",nome:"",email:""});reRenderAdmin();};});
-  var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN);};
+  var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN,AUTH);};
   var rl=document.getElementById("admReload");if(rl)rl.onclick=function(){ADMIN=CFG?JSON.parse(JSON.stringify(CFG)):null;reRenderAdmin();toast("Alterações descartadas");};
 }
 
@@ -614,7 +627,7 @@ function loadData(){
     })
     .getDados();
 }
-google.script.run.withSuccessHandler(function(m){ME=m||ME; var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe();
+google.script.run.withSuccessHandler(function(m){ME=m||ME; var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe(AUTH);
 google.script.run.withSuccessHandler(function(c){CFG=c;}).getConfig();
 loadData();
 setInterval(loadData, REFRESH_MS); // relê sozinho — novos pedidos aparecem em qualquer dispositivo
