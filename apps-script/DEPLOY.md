@@ -86,5 +86,37 @@ O código agora usa **criar eventos na agenda** e **criar a planilha Central**. 
 ## Liberar para a equipe (quando quiser)
 Em **Implantar → Gerenciar implantações → editar → Quem pode acessar**, troque de "Apenas eu" para **"Qualquer pessoa com Conta do Google"** (e a gente adiciona uma checagem de e-mails autorizados), ou mantenha restrito às contas da equipe conforme sua organização permitir.
 
-## Próxima etapa
-- **Etapa 3:** página pública de reserva (link aberto) com aviso de conflito em tempo real, que cai direto em "Pedidos".
+---
+
+# Etapa 3 — Página pública de reserva
+
+> Um link aberto para a igreja fazer reservas. Avisa conflito na hora e cai direto em "Pedidos".
+> O painel da secretaria continua **restrito** — quem não é do time cai na página de reserva, nunca no painel.
+
+## 1. Atualizar o código + criar a página nova
+1. **`Código.gs`**: cole a versão nova (Cmd+A → Delete → Cmd+V → Cmd+S).
+   - Dentro dele há a lista **`ALLOWLIST`** (e-mails que podem abrir o painel). Adicione ali os e-mails da equipe da secretaria, separados por vírgula.
+2. Crie um **novo arquivo HTML** chamado exatamente **`Reserva`** (o `+` → HTML) e cole o conteúdo de **`Reserva.html`**. Salve.
+
+## 2. Testar
+- Rode **`_teste`** (▶). Cria a aba "solicitacoes" na planilha Central. Sem novas permissões.
+
+## 3. Republicar o PAINEL (implantação existente)
+- **Implantar → Gerenciar implantações → lápis → Versão: Nova versão → Implantar.**
+
+## 4. Criar a IMPLANTAÇÃO PÚBLICA (link de reserva)
+1. **Implantar → Nova implantação.**
+2. Tipo (engrenagem) → **App da Web**.
+3. Configure:
+   - **Descrição:** Reserva pública
+   - **Executar como:** **Eu (fhopchurch@fhop.com)**
+   - **Quem pode acessar:** **Qualquer pessoa**
+     - *Se sua organização não deixar "Qualquer pessoa", escolha "Qualquer pessoa com Conta do Google" (aí a pessoa faz login antes).*
+4. **Implantar** → copie a **URL**. **Essa é o link público de reserva** — compartilhe com a igreja.
+
+## Como fica
+- **Link público** (implantação "Qualquer pessoa") → mostra a **página de reserva** (a pessoa não é do time).
+- **Link do painel** (implantação restrita, logado como fhopchurch) → mostra o **painel da secretaria**.
+- Uma reserva enviada aparece no painel em **Pedidos**, com origem "Reserva online", pronta para **Aprovar / Recusar / Editar / Excluir**.
+
+> Segurança: mesmo que alguém descubra o link do painel, só abre para os e-mails da `ALLOWLIST`; os demais são levados para a página de reserva.

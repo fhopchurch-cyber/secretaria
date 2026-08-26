@@ -31,11 +31,55 @@ var ALIASES = {
   'briefing':'Briefing','estacionamento':'Estacionamento'
 };
 
+// ---- Defaults para o Admin editável ----
+var ESPACOS_DEF = ['Auditório','Nave do Templo','Sala 1','Sala 2','Área Gourmet','Sala Verde/Estúdio','Sala de reunião/atendimento','Briefing','Estacionamento'];
+var DEPARTS_DEF = ['RESET','XTRA','ROCKTES','KIDS','ENCONTRO DELAS','HOMENS','PROFÉTICO','FHOP SOCIAL','USHERS','SALA DE ORAÇÃO','LOUVOR','ADMINISTRATIVO','FINANCEIRO','HOSPITALIDADE','FHOP BOOKS','FHOP STORE','FHOP MUSIC','FHOP SCHOOL','FASCINAÇÃO','ESCOLAS','CENTRO TREINAMENTO','TECNOLOGIAS','COMUNICAÇÃO E MARKETING','PASTORAL','EVENTOS E CONFERÊNCIAS'];
+var PASTORES_DEF = ['Shalon','Camila','Cleber','Letícia','Vinicius','Emilaine','William','Nathalie','Hamilton','Brenon','Fernanda'].map(function(n){ return {nome:n, email:''}; });
+var RESP_DEF = [{papel:'Patrimônio', nome:'Wanderson', email:'wanderson@fhop.com'},{papel:'Audiovisual', nome:'Bruna', email:'brunafbatista@fhop.com'},{papel:'Secretaria', nome:'', email:''}];
+
+// Config ao vivo (defaults + o que o Admin salvou na Central). Cache por execução.
+var _CFG = null;
+function cfg(){
+  if(_CFG) return _CFG;
+  var stored = {};
+  try{
+    var sh = getCentralSS_().getSheetByName('config');
+    if(sh){ var raw = sh.getRange('A1').getValue(); if(raw) stored = JSON.parse(raw); }
+  }catch(e){}
+  _CFG = {
+    fontes: Object.assign({}, FONTES, stored.fontes||{}),
+    allowlist: (stored.allowlist && stored.allowlist.length) ? stored.allowlist : ALLOWLIST.slice(),
+    espacos: stored.espacos || ESPACOS_DEF.slice(),
+    departamentos: stored.departamentos || DEPARTS_DEF.slice(),
+    pastores: stored.pastores || PASTORES_DEF.slice(),
+    responsaveis: stored.responsaveis || RESP_DEF.slice(),
+    aliases: Object.assign({}, ALIASES, stored.aliases||{}),
+    linkPainel: stored.linkPainel || ''
+  };
+  return _CFG;
+}
+function getConfig(){ return cfg(); }
+function getLinkPainel(){ return cfg().linkPainel || ''; } // exposto à página pública (só a URL)
+function getMe(){
+  var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
+  return { email: email, admin: cfg().allowlist.indexOf(email) > -1 };
+}
+function saveConfig(novo){
+  var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
+  if(cfg().allowlist.indexOf(email) < 0) throw new Error('Apenas a secretaria pode alterar as configurações.');
+  var ss = getCentralSS_();
+  var sh = ss.getSheetByName('config') || ss.insertSheet('config');
+  sh.getRange('A1').setValue(JSON.stringify(novo));
+  _CFG = null;
+  return { ok:true };
+}
+
 function norm(raw){
   if(!raw) return null;
+  var AL = cfg().aliases;
   var k = String(raw).toLowerCase().trim().replace(/\s+/g,' ');
-  if(ALIASES[k]) return ALIASES[k];
-  for(var a in ALIASES){ if(k.indexOf(a) > -1) return ALIASES[a]; }
+  if(AL[k]) return AL[k];
+  for(var a in AL){ if(k.indexOf(a) > -1) return AL[a]; }
   return null;
 }
 
@@ -43,7 +87,7 @@ function norm(raw){
 function doGet(e){
   var p = (e && e.parameter && e.parameter.p) || '';
   var email = ''; try { email = Session.getActiveUser().getEmail() || ''; } catch(_){}
-  var autorizado = ALLOWLIST.indexOf(email) > -1;
+  var autorizado = cfg().allowlist.indexOf(email) > -1;
   var arquivo = (p === 'reserva' || !autorizado) ? 'Reserva' : 'Index';
   return HtmlService.createHtmlOutputFromFile(arquivo)
     .setTitle(arquivo === 'Reserva' ? 'Reserva de Espaço · FHOP' : 'Central de Reservas FHOP')
@@ -100,7 +144,7 @@ function getDados(){
 
   // ---- Form 1: Reserva de espaço (departamentos) ----
   try{
-    var v = readSheet(FONTES.form1_reserva), h = v[0];
+    var v = readSheet(cfg().fontes.form1_reserva), h = v[0];
     var c = {
       nome: col(h,'respons'), dept: col(h,'departamento'), desc: col(h,'descri'),
       data: col(h,'data do evento'), ini: col(h,'início'), fim: col(h,'término'),
@@ -122,7 +166,7 @@ function getDados(){
 
   // ---- Form 3: Reserva pastoral ----
   try{
-    var v3 = readSheet(FONTES.form3_reserva), h3 = v3[0];
+    var v3 = readSheet(cfg().fontes.form3_reserva), h3 = v3[0];
     var c3 = { pastor: col(h3,'pastor'), data: col(h3,'data'), ini: col(h3,'início'), fim: col(h3,'término'), esp: col(h3,'espaço'), email: col(h3,'e-mail') };
     for(var j=1;j<v3.length;j++){
       var r3 = v3[j]; if(!r3[c3.data]) continue;
@@ -138,9 +182,27 @@ function getDados(){
     }
   }catch(err){ out.erros.push('Form 3: '+err); }
 
+  // ---- Reservas online (página pública) ----
+  try{
+    var vs = getSolic_().getDataRange().getValues(), hs = vs[0], cs = {};
+    SOLIC_COLS.forEach(function(name){ cs[name] = colExact(hs, name); });
+    for(var w=1;w<vs.length;w++){
+      var rw = vs[w]; if(!rw[cs.key]) continue;
+      var dw = fmtDate(rw[cs.date]); if(dw && dw < CORTE) continue;
+      out.requests.push({
+        key: String(rw[cs.key]),
+        origem:'Reserva online', tipo: str(rw[cs.tipo]) || 'reserva',
+        title: str(rw[cs.title]), dept: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]),
+        solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]),
+        date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
+        spaces: splitSpaces(rw[cs.spaces])
+      });
+    }
+  }catch(err){ out.erros.push('Reservas online: '+err); }
+
   // ---- Form 2: Atendimento pastoral (fila de encaminhamento) ----
   try{
-    var v2 = readSheet(FONTES.form2_pastoral), h2 = v2[0];
+    var v2 = readSheet(cfg().fontes.form2_pastoral), h2 = v2[0];
     var c2 = { carimbo: col(h2,'carimbo'), nome: col(h2,'nome completo'), motivo: col(h2,'aconselhamento'), dias: col(h2,'dias dispon'), hora: col(h2,'horário dispon') };
     for(var k=1;k<v2.length;k++){
       var r2 = v2[k]; if(!r2[c2.nome]) continue;
@@ -158,7 +220,7 @@ function getDados(){
 
   // ---- Agenda (confirmados) ----
   try{
-    var cal = CalendarApp.getCalendarById(FONTES.agenda);
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
     var cp = CORTE.split('-');
     var ini = new Date(+cp[0], +cp[1]-1, +cp[2]);       // a partir da data de corte
     var fim = new Date(+cp[0]+1, +cp[1]-1, +cp[2]);      // +1 ano
@@ -206,19 +268,117 @@ function getDados(){
  * ========================================================= */
 
 var CENTRAL_COLS = ['key','status','pastor','eventId','override','titulo','quando','quem'];
+var SOLIC_COLS = ['key','quando','title','tipo','dept','tagPastor','solicitante','email','date','s','e','spaces','needs'];
 
-function getCentral_(){
+function getCentralSS_(){
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('CENTRAL_ID_V2'), ss;
   if(id){ try { ss = SpreadsheetApp.openById(id); } catch(e){ id = null; } }
   if(!id){
     ss = SpreadsheetApp.create('FHOP — Central de Reservas (Estado)');
     props.setProperty('CENTRAL_ID_V2', ss.getId());
-    var sh0 = ss.getSheets()[0]; sh0.setName('estado'); sh0.appendRow(CENTRAL_COLS);
+    ss.getSheets()[0].setName('estado');
   }
-  var sh = ss.getSheetByName('estado');
-  if(!sh){ sh = ss.insertSheet('estado'); sh.appendRow(CENTRAL_COLS); }
+  return ss;
+}
+function getSheet_(ss, name, cols){
+  var sh = ss.getSheetByName(name);
+  if(!sh){ sh = ss.insertSheet(name); sh.appendRow(cols); }
+  else if(sh.getLastRow()===0){ sh.appendRow(cols); }
   return sh;
+}
+function getCentral_(){ return getSheet_(getCentralSS_(), 'estado', CENTRAL_COLS); }
+function getSolic_(){ return getSheet_(getCentralSS_(), 'solicitacoes', SOLIC_COLS); }
+function colExact(headers, name){ for(var i=0;i<headers.length;i++){ if(String(headers[i]).toLowerCase()===name.toLowerCase()) return i; } return -1; }
+
+/** Reserva feita na página pública → cai na fila de Pendentes. */
+function enviarReserva(data){
+  if(!data || !data.title || !data.date) throw new Error('Preencha título e data.');
+  var sh = getSolic_();
+  var key = 'W-' + (new Date().getTime()) + '-' + Math.floor(Math.random()*1000);
+  var quando = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+  sh.appendRow([key, quando, data.title, data.tipo||'reserva', data.dept||'', data.tagPastor||'',
+    data.solicitante||'', data.email||'', data.date, data.s||'', data.e||'',
+    (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
+  return { ok:true, key:key };
+}
+
+/** Adicionar ocorrência direto no painel (secretaria). Opcional: já aprovar → agenda. */
+function adicionarOcorrencia(data, aprovarJa){
+  var res = enviarReserva(data);
+  if(aprovarJa){
+    aprovar({ key:res.key, title:data.title, dept:data.dept||'', tagPastor:data.tagPastor||'',
+      solicitante:data.solicitante||'', email:data.email||'', date:data.date, s:data.s, e:data.e,
+      spaces:data.spaces||[], needs:data.needs, origem:'Secretaria' });
+  }
+  return { ok:true };
+}
+
+// ---- E-mails (só a secretaria/servidor dispara) ----
+function pastorEmail_(nome){
+  var ps = cfg().pastores || [];
+  for(var i=0;i<ps.length;i++){ if(String(ps[i].nome||'').toLowerCase() === String(nome||'').toLowerCase()) return ps[i].email||''; }
+  return '';
+}
+function respEmail_(sub){
+  var rs = cfg().responsaveis || [];
+  for(var i=0;i<rs.length;i++){ if(String(rs[i].papel||'').toLowerCase().indexOf(sub) > -1) return rs[i].email||''; }
+  return '';
+}
+function sendMail_(to, subject, body){
+  if(!to || !/@/.test(to)) return;
+  try{ MailApp.sendEmail(to, subject, body); }catch(e){}
+}
+function notificarResponsaveis_(req){
+  var quando = req.date + ' ' + (req.s||'') + '–' + (req.e||'');
+  var local = (req.spaces||[]).join(', ');
+  if(req.tagPastor){ sendMail_(pastorEmail_(req.tagPastor), 'Reserva aprovada: '+req.title,
+    'Olá '+req.tagPastor+',\n\nReserva aprovada:\n'+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
+  if(req.needs){
+    if(req.needs.patrimonio && req.needs.patrimonio.length){ sendMail_(respEmail_('patrim'), 'Patrimônio · '+req.title,
+      'Preparar: '+req.needs.patrimonio.join(', ')+(req.needs.obs?('\nObs.: '+req.needs.obs):'')+'\n\nEvento: '+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
+    if(req.needs.av && req.needs.av.length){ sendMail_(respEmail_('audio'), 'Audiovisual · '+req.title,
+      'Preparar: '+req.needs.av.join(', ')+'\n\nEvento: '+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
+  }
+}
+
+/** Encaminhar atendimento pastoral COM data/hora/local → cria evento na agenda + avisa o pastor. */
+function encaminharComAgenda(item, det){
+  if(!item || !item.key || !det || !det.pastor || !det.date) throw new Error('Informe pastor e data.');
+  var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+  var start = mkDate_(det.date, det.s||'09:00'), end = mkDate_(det.date, det.e||det.s||'10:00');
+  var titulo = 'Atendimento pastoral — ' + det.pastor;
+  var local = det.local || '';
+  var desc = ['Membro: '+(item.nome||''), item.motivo?('Motivo: '+item.motivo):'', 'Encaminhado via Central'].filter(String).join('\n');
+  var opts = { location: local, description: desc };
+  var pe = pastorEmail_(det.pastor), guests = [];
+  if(pe) guests.push(pe);
+  if(det.email && /@/.test(det.email)) guests.push(det.email);
+  if(guests.length){ opts.guests = guests.join(','); opts.sendInvites = true; }
+  var ev = cal.createEvent(titulo, start, end, opts);
+  upsertEstado_(item.key, { status:'encaminhado', pastor:det.pastor, eventId: ev.getId(), titulo:item.nome||'' });
+  sendMail_(pe, 'Atendimento pastoral encaminhado',
+    'Você recebeu um atendimento:\nMembro: '+(item.nome||'')+'\nData: '+det.date+' '+(det.s||'')+'–'+(det.e||'')+'\nLocal: '+local+(item.motivo?('\nMotivo: '+item.motivo):'')+'\n\n— Central de Reservas FHOP');
+  return { ok:true };
+}
+
+/** Ocupação confirmada (só espaço+horário, sem nomes) para a página pública checar conflito. */
+function getOcupacao(){
+  var out = [];
+  try{
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+    var cp = CORTE.split('-');
+    var evs = cal.getEvents(new Date(+cp[0],+cp[1]-1,+cp[2]), new Date(+cp[0]+1,+cp[1]-1,+cp[2]));
+    for(var i=0;i<evs.length;i++){
+      var ev = evs[i];
+      var space = norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
+      if(!space) continue;
+      out.push({ date: Utilities.formatDate(ev.getStartTime(),TZ,'yyyy-MM-dd'),
+        s: Utilities.formatDate(ev.getStartTime(),TZ,'HH:mm'),
+        e: Utilities.formatDate(ev.getEndTime(),TZ,'HH:mm'), space: space });
+    }
+  }catch(e){}
+  return out;
 }
 
 function readEstado_(){
@@ -257,7 +417,7 @@ function mkDate_(date, time){
 /** Aprovar: cria o evento na agenda + convida o e-mail do solicitante. */
 function aprovar(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
-  var cal = CalendarApp.getCalendarById(FONTES.agenda);
+  var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
   var start = mkDate_(req.date, req.s), end = mkDate_(req.date, req.e);
   var quem = req.tagPastor ? ('Pastor: '+req.tagPastor) : (req.dept ? ('Depto: '+req.dept) : '');
   var titulo = req.title + (req.dept ? ' — '+req.dept : (req.tagPastor ? ' — '+req.tagPastor : ''));
@@ -267,6 +427,7 @@ function aprovar(req){
   if(req.email && /@/.test(req.email)){ opts.guests = req.email; opts.sendInvites = true; }
   var ev = cal.createEvent(titulo, start, end, opts);
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
+  try { notificarResponsaveis_(req); } catch(e){}
   return { ok:true, eventId: ev.getId() };
 }
 
@@ -283,7 +444,7 @@ function excluir(item){
   // se tiver evento criado, remove da agenda também
   var estado = readEstado_(), st = estado[item.key];
   if(st && st.eventId){
-    try { var cal = CalendarApp.getCalendarById(FONTES.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+    try { var cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
   }
   upsertEstado_(item.key, { status:'excluido', eventId:'' });
   return { ok:true };
@@ -294,7 +455,7 @@ function desfazer(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
   var estado = readEstado_(), st = estado[req.key];
   if(st && st.eventId){
-    try { var cal = CalendarApp.getCalendarById(FONTES.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+    try { var cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
   }
   upsertEstado_(req.key, { status:'pendente', eventId:'' });
   return { ok:true };

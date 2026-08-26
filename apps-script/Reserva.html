@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{--ground:#f5f6f8;--surface:#fff;--surface-2:#f1f3f6;--ink:#0a0a0a;--ink-soft:#33373d;--ink-faint:#69727d;
+    --line:#e5e7ea;--line-strong:#d3d6db;--accent:#1e73be;--accent-soft:#e7f0f9;--accent-ink:#155a97;
+    --crit:#d13b47;--crit-bg:#fbe9ea;--crit-line:#f1c4c8;--ok:#38994f;--ok-bg:#e7f4ea;--ok-line:#c2e2ca;
+    --shadow:0 1px 2px rgba(10,10,10,.04),0 8px 26px rgba(10,10,10,.08);--radius:16px}
+  @media(prefers-color-scheme:dark){:root{--ground:#0d0f11;--surface:#15181b;--surface-2:#1c2024;--ink:#f2f4f6;--ink-soft:#c3c8ce;--ink-faint:#828b94;--line:#262b30;--line-strong:#353b42;--accent:#5aa3e2;--accent-soft:#122a3e;--accent-ink:#93c5ee;--crit:#ef7d89;--crit-bg:#3a2126;--crit-line:#5b2f36;--ok:#6fc98a;--ok-bg:#182c1f;--ok-line:#2b4736}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:640px;margin:0 auto;padding:24px clamp(14px,4vw,20px) 70px}
+  .logohead{display:flex;justify-content:center;margin-bottom:6px}
+  .logo{height:30px;overflow:visible}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px clamp(18px,4vw,28px);margin-top:14px}
+  .eyebrow{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
+  h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;margin:6px 0 6px;text-align:center}
+  .lead{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px;text-align:center}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+  .field>label{font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .field input,.field select{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:460px){.grid2{grid-template-columns:1fr}}
+  .seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13px;padding:8px;border-radius:7px;cursor:pointer;color:var(--ink-soft)}
+  .seg button[aria-pressed=true]{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}
+  .spacegrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  @media(max-width:460px){.spacegrid{grid-template-columns:1fr}}
+  .spacegrid label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer}
+  .spacegrid label:hover{border-color:var(--accent)}
+  .spacegrid input{width:auto;accent-color:var(--accent)}
+  .banner{border-radius:11px;padding:13px 15px;font-size:13.5px;font-weight:600;margin:4px 0 18px;display:none}
+  .banner.show{display:block}
+  .banner.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
+  .banner.bad{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-line)}
+  .banner.wait{background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line)}
+  .banner .bsub{font-weight:500;font-size:12.5px;margin-top:4px;display:block}
+  .btn-primary{width:100%;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:15px;padding:13px;border-radius:11px;cursor:pointer;box-shadow:var(--shadow)}
+  .btn-primary:hover{filter:brightness(1.06)} .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  details{margin-bottom:16px;border:1px solid var(--line);border-radius:10px;padding:0 12px}
+  summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:11px 0}
+  .needs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  @media(max-width:460px){.needs{grid-template-columns:1fr}}
+  .needs .nh{grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:8px 0 3px}
+  .needs label{display:flex;gap:7px;align-items:center;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
+  .needs input{width:auto;accent-color:var(--accent)}
+  .success{text-align:center;padding:30px 12px}
+  .success .big{font-size:46px;margin-bottom:10px}
+  .success h2{font-family:"Archivo",sans-serif;font-size:22px;margin:0 0 8px}
+  .success p{color:var(--ink-soft);font-size:14px;margin:0 auto 20px;max-width:44ch}
+  .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px;cursor:pointer}
+  .foot{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logohead">
+    <svg class="logo" viewBox="0 0 500 92" role="img" aria-label="fhop church" preserveAspectRatio="xMidYMid meet">
+      <text x="2" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ink)">fhop</text>
+      <rect x="170" y="6" width="322" height="80" rx="20" style="fill:var(--ink)"></rect>
+      <text x="192" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ground)">church</text>
+    </svg>
+  </div>
+
+  <div class="card" id="formCard">
+    <div class="eyebrow">Reserva de espaço</div>
+    <h1>Solicitar reserva</h1>
+    <p class="lead">Preencha abaixo. Ao escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.</p>
+
+    <form id="form">
+      <div class="grid2">
+        <div class="field"><label for="rName">Seu nome</label><input id="rName" type="text" placeholder="Nome do responsável" required></div>
+        <div class="field"><label for="rEmail">Seu e-mail</label><input id="rEmail" type="email" placeholder="para receber a confirmação"></div>
+      </div>
+      <div class="field"><label for="rTitle">Evento / motivo</label><input id="rTitle" type="text" placeholder="Ex.: Reunião de equipe" required></div>
+      <div class="field"><label>Responsável</label>
+        <div class="seg" id="tagSeg" style="margin-bottom:8px"><button type="button" data-k="dept" aria-pressed="true">Departamento</button><button type="button" data-k="pastor" aria-pressed="false">Pastor</button></div>
+        <select id="rDept"></select><select id="rPastor" hidden></select>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="rDate">Data</label><input id="rDate" type="date" required></div>
+        <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="rStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="rEnd" type="time" value="21:00" style="flex:1"></div></div>
+      </div>
+      <div class="field"><label>Espaço(s) desejado(s)</label><div class="spacegrid" id="rSpaceGrid"></div></div>
+
+      <div class="banner" id="banner"></div>
+
+      <details><summary>Precisa de algo? (cadeiras, café, som…)</summary>
+        <div class="needs" id="needsGrid"></div>
+        <div class="field" style="margin:10px 0 12px"><label for="rObs">Observações</label><input id="rObs" type="text" placeholder="Ex.: 50 cadeiras, projetor"></div>
+      </details>
+
+      <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
+    </form>
+    <p class="foot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.<br>
+      <a id="admLink" href="#" target="_blank" rel="noopener" style="display:none;color:var(--accent-ink);font-weight:600;text-decoration:none">🔒 Área da secretaria (entrar) →</a></p>
+  </div>
+
+  <div class="card success" id="success" hidden>
+    <div class="big">✅</div>
+    <h2>Solicitação enviada!</h2>
+    <p id="successMsg">Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.</p>
+    <button class="btn-ghost" id="again">Fazer outra reserva</button>
+  </div>
+</div>
+
+<script>
+var CANON=["Auditório","Nave do Templo","Sala 1","Sala 2","Área Gourmet","Sala Verde/Estúdio","Sala de reunião/atendimento","Briefing","Estacionamento"];
+var DEPARTS=["RESET","XTRA","ROCKTES","KIDS","ENCONTRO DELAS","HOMENS","PROFÉTICO","FHOP SOCIAL","USHERS","SALA DE ORAÇÃO","LOUVOR","ADMINISTRATIVO","FINANCEIRO","HOSPITALIDADE","FHOP BOOKS","FHOP STORE","FHOP MUSIC","FHOP SCHOOL","FASCINAÇÃO","ESCOLAS","CENTRO TREINAMENTO","TECNOLOGIAS","COMUNICAÇÃO E MARKETING","PASTORAL","EVENTOS E CONFERÊNCIAS"];
+var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
+var NEEDS={"Patrimônio (Wanderson)":["Cadeiras","Mesas","Outros objetos"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira"],"Audiovisual (Bruna)":["Sistema de som","Microfone(s)","Projetor","Telão/Quadro","Iluminação especial"]};
+
+var OCUP=null;
+function id(x){return document.getElementById(x);}
+function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+
+var rDept=id("rDept"),rPastor=id("rPastor"),rSpaceGrid=id("rSpaceGrid"),needsGrid=id("needsGrid");
+DEPARTS.forEach(function(d){rDept.add(new Option(d,d));});
+PASTORES.forEach(function(p){rPastor.add(new Option(p,p));});
+CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
+Object.keys(NEEDS).forEach(function(cat){needsGrid.insertAdjacentHTML("beforeend",'<div class="nh">'+esc(cat)+'</div>');NEEDS[cat].forEach(function(it){needsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});});
+
+var tagMode="dept";
+id("tagSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;tagMode=b.getAttribute("data-k");
+  document.querySelectorAll("#tagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")===tagMode?"true":"false");});
+  rDept.hidden=tagMode==="pastor";rPastor.hidden=tagMode!=="pastor";};
+
+function chosen(){var a=[];rSpaceGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);});return a;}
+
+function checkConflict(){
+  var b=id("banner"),date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
+  b.className="banner";
+  if(!date||!s||!en||toMin(en)<=toMin(s)||!sp.length){b.classList.remove("show");return;}
+  if(OCUP===null){b.classList.add("show","wait");b.textContent="Checando disponibilidade…";return;}
+  var probe={date:date,s:s,e:en};
+  var hits=OCUP.filter(function(o){return o.date===probe.date && sp.indexOf(o.space)>-1 && toMin(probe.s)<toMin(o.e) && toMin(o.s)<toMin(probe.e);});
+  b.classList.add("show");
+  if(!hits.length){b.classList.add("ok");b.innerHTML="✓ Espaço(s) livre(s) nesse horário.<span class='bsub'>Você pode enviar — a secretaria confirma.</span>";}
+  else{
+    b.classList.add("bad");
+    var seen={},list=hits.filter(function(h){if(seen[h.space])return false;seen[h.space]=1;return true;}).map(function(h){return esc(h.space)+" ("+h.s+"–"+h.e+")";});
+    b.innerHTML="⚠ Já há reserva confirmada nesse horário:<span class='bsub'>"+list.join("<br>")+"<br><br>Você ainda pode enviar, mas provavelmente será recusado. Tente outro horário ou espaço.</span>";
+  }
+}
+["rDate","rStart","rEnd"].forEach(function(x){id(x).addEventListener("input",checkConflict);});
+rSpaceGrid.addEventListener("change",checkConflict);
+
+// busca a ocupação confirmada (só espaço+horário, sem nomes)
+google.script.run.withSuccessHandler(function(o){OCUP=o||[];checkConflict();}).withFailureHandler(function(){OCUP=[];}).getOcupacao();
+// link para a área da secretaria (se configurado no Admin)
+google.script.run.withSuccessHandler(function(u){var a=id("admLink");if(u){a.href=u;a.style.display="inline-block";}}).withFailureHandler(function(){}).getLinkPainel();
+
+id("form").addEventListener("submit",function(e){
+  e.preventDefault();
+  var name=id("rName").value.trim(),email=id("rEmail").value.trim(),title=id("rTitle").value.trim();
+  var date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
+  if(!name||!title||!date){alert("Preencha nome, evento e data.");return;}
+  if(!sp.length){alert("Escolha ao menos um espaço.");return;}
+  if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
+  var needs={obs:id("rObs").value.trim()};
+  needsGrid.querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
+  var conf=id("banner").classList.contains("bad");
+  var data={title:title,tipo:"reserva",dept:tagMode==="dept"?rDept.value:"",tagPastor:tagMode==="pastor"?rPastor.value:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
+  id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
+  google.script.run
+    .withSuccessHandler(function(){
+      id("successMsg").innerHTML=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
+      id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
+    })
+    .withFailureHandler(function(err){id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));})
+    .enviarReserva(data);
+});
+id("again").onclick=function(){id("form").reset();tagMode="dept";rDept.hidden=false;rPastor.hidden=true;document.querySelectorAll("#tagSeg button").forEach(function(x){x.setAttribute("aria-pressed",x.getAttribute("data-k")==="dept"?"true":"false");});id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
+</script>
+</body>
+</html>

@@ -86,9 +86,41 @@
   @media(max-width:460px){.spacegrid{grid-template-columns:1fr}}
   .spacegrid label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
   .spacegrid input{width:auto;accent-color:var(--accent)}
+  .seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .seg button{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13px;padding:7px 8px;border-radius:7px;cursor:pointer;color:var(--ink-soft)}
+  .seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}
+  .dlg select{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
   .dlg-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
   .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:9px 15px;border-radius:9px;cursor:pointer}
   .btn-primary{border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer}
+  .viewseg{display:flex;gap:3px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .viewseg button{border:0;background:none;font:inherit;font-weight:600;font-size:12.5px;padding:6px 11px;border-radius:6px;cursor:pointer;color:var(--ink-soft)}
+  .viewseg button.on{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}
+  .day{cursor:pointer} .day.sel{outline:2px solid var(--accent);outline-offset:-2px}
+  .pill b{font-weight:700} .pill.morep{border:0;color:var(--accent-ink);cursor:pointer;font-weight:600}
+  .weekgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;overflow-x:auto}
+  @media(max-width:720px){.weekgrid{grid-template-columns:repeat(7,150px)}}
+  .weekday{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:9px;min-height:120px;cursor:pointer;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:4px}
+  .weekday.sel{outline:2px solid var(--accent);outline-offset:-2px}
+  .weekday .wh{font-weight:700;font-size:12.5px;color:var(--ink-soft);margin-bottom:2px}
+  .wempty{color:var(--ink-faint);font-size:12px}
+  .daydetail{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+  .daydetail h3{font-family:"Archivo",sans-serif;font-weight:700;font-size:15px;margin:0 0 12px}
+  .dd-empty{color:var(--ink-faint);font-size:13px}
+  .row.plain{box-shadow:none}
+  .callout{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:12px 15px;font-size:13px;color:var(--ink-soft);margin-bottom:14px}
+  .adminsec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:13px}
+  .adminsec h3{font-family:"Archivo",sans-serif;font-size:15px;margin:0 0 3px}
+  .ahint{font-size:12px;color:var(--ink-faint);margin:0 0 11px}
+  .adminsec .field{margin-bottom:10px} .adminsec .field label{font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .adminsec input{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .chiplist{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+  .chip-ed{display:inline-flex;align-items:center;gap:7px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px}
+  .chip-ed button{border:0;background:none;color:var(--ink-faint);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:50%}
+  .chip-ed button:hover{color:var(--crit);background:var(--crit-bg)}
+  .addline{display:flex;gap:7px;flex-wrap:wrap} .addline input{flex:1;min-width:150px}
+  .pxrow{display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap} .pxrow input{flex:1;min-width:120px}
+  .pxrow button{flex:0 0 auto}
   .refresh{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink-faint);margin:16px 0 0;flex-wrap:wrap}
   .refresh button{border:1px solid var(--line-strong);background:var(--surface);color:var(--accent-ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .refresh button:hover{border-color:var(--accent)}
@@ -107,7 +139,7 @@
     </svg>
     <span class="live"><span class="dot"></span> Ao vivo</span>
   </div>
-  <div class="s" style="margin-top:14px">Secretaria</div>
+  <div class="s" style="margin-top:14px">Secretaria <span id="meLabel" style="text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:500"></span></div>
   <h1>Central de Reservas</h1>
   <p class="sub">Lê em tempo real as planilhas e a agenda. Aprovar cria o evento e convida o solicitante.</p>
 
@@ -128,11 +160,48 @@
   </form>
 </dialog>
 
+<dialog id="addDialog">
+  <form method="dialog" class="dlg" id="addForm">
+    <h2>Adicionar ocorrência</h2>
+    <p class="dsub">Lançar direto no painel. Vai para Pendentes (ou já aprovar e mandar para a agenda).</p>
+    <div class="field"><label>Tipo</label>
+      <div class="seg" id="aTypeSeg"><button type="button" data-k="reserva" aria-pressed="true">Reserva</button><button type="button" data-k="evento" aria-pressed="false">Evento</button></div>
+    </div>
+    <div class="field"><label for="aTitle">Título / evento</label><input id="aTitle" type="text" placeholder="Ex.: Reunião de equipe"></div>
+    <div class="field"><label>Responsável</label>
+      <div class="seg" id="aTagSeg" style="margin-bottom:8px"><button type="button" data-k="dept" aria-pressed="true">Departamento</button><button type="button" data-k="pastor" aria-pressed="false">Pastor</button></div>
+      <select id="aDept"></select><select id="aPastor" hidden></select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="aDate">Data</label><input id="aDate" type="date"></div>
+      <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="aStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="aEnd" type="time" value="21:00" style="flex:1"></div></div>
+    </div>
+    <div class="field"><label>Espaço(s)</label><div class="spacegrid" id="aSpaceGrid"></div></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="aAprovar" style="width:auto"> Já aprovar e mandar para a agenda</label>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="aCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar</button></div>
+  </form>
+</dialog>
+
+<dialog id="encDialog">
+  <form method="dialog" class="dlg" id="encForm">
+    <h2>Encaminhar atendimento</h2>
+    <p class="dsub" id="encSub">Agende o atendimento: cria o evento na agenda e avisa o pastor por e-mail.</p>
+    <div class="field"><label for="encPastor">Pastor</label><select id="encPastor"></select></div>
+    <div class="grid2">
+      <div class="field"><label for="encDate">Data</label><input id="encDate" type="date"></div>
+      <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="encStart" type="time" value="14:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="encEnd" type="time" value="15:00" style="flex:1"></div></div>
+    </div>
+    <div class="field"><label for="encLocal">Local</label><select id="encLocal"></select></div>
+    <div class="field"><label for="encEmail">E-mail do membro (opcional, para convidar)</label><input id="encEmail" type="email" placeholder="membro@exemplo.com"></div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="encCancel">Cancelar</button><button type="submit" class="btn-primary">Encaminhar + agendar</button></div>
+  </form>
+</dialog>
+
 <script>
 var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 var MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 var MESAB=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000;
+var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000, calView="mes", ME={email:"",admin:false}, CFG=null;
 
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function overlap(a,b){return a.date===b.date&&a.s&&a.e&&b.s&&b.e&&toMin(a.s)<toMin(b.e)&&toMin(b.s)<toMin(a.e);}
@@ -145,6 +214,10 @@ function inCurMonth(d){if(!d)return false;var t=parseD(d);return t.getFullYear()
 
 var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
 var CANON=["Auditório","Nave do Templo","Sala 1","Sala 2","Área Gourmet","Sala Verde/Estúdio","Sala de reunião/atendimento","Briefing","Estacionamento"];
+var DEPARTS=["RESET","XTRA","ROCKTES","KIDS","ENCONTRO DELAS","HOMENS","PROFÉTICO","FHOP SOCIAL","USHERS","SALA DE ORAÇÃO","LOUVOR","ADMINISTRATIVO","FINANCEIRO","HOSPITALIDADE","FHOP BOOKS","FHOP STORE","FHOP MUSIC","FHOP SCHOOL","FASCINAÇÃO","ESCOLAS","CENTRO TREINAMENTO","TECNOLOGIAS","COMUNICAÇÃO E MARKETING","PASTORAL","EVENTOS E CONFERÊNCIAS"];
+function cfgEspacos(){return (CFG&&CFG.espacos&&CFG.espacos.length)?CFG.espacos:CANON;}
+function cfgDeparts(){return (CFG&&CFG.departamentos&&CFG.departamentos.length)?CFG.departamentos:DEPARTS;}
+function cfgPastores(){return (CFG&&CFG.pastores&&CFG.pastores.length)?CFG.pastores.map(function(p){return p.nome;}):PASTORES;}
 var REQ={}, PAS={}, BUSY=false;
 function indexData(){REQ={};PAS={};DATA.requests.forEach(function(r){REQ[r.key]=r;});DATA.pastoral.forEach(function(p){PAS[p.key]=p;});}
 
@@ -176,11 +249,9 @@ function wireActions(scope){
   scope.querySelectorAll("[data-desfazer]").forEach(function(b){b.onclick=function(){doDesfazer(b.getAttribute("data-desfazer"));};});
   scope.querySelectorAll("[data-excluir]").forEach(function(b){b.onclick=function(){doExcluir(b.getAttribute("data-excluir"));};});
   scope.querySelectorAll("[data-editar]").forEach(function(b){b.onclick=function(){openEdit(b.getAttribute("data-editar"));};});
-  scope.querySelectorAll("[data-enc]").forEach(function(b){b.onclick=function(){
-    var sel=scope.querySelector('.passel[data-k="'+b.getAttribute("data-enc")+'"]');
-    if(!sel.value){toast("Escolha um pastor",true);return;}
-    doEncaminhar(b.getAttribute("data-enc"),sel.value);
-  };});
+  scope.querySelectorAll("[data-enc2]").forEach(function(b){b.onclick=function(){openEnc(b.getAttribute("data-enc2"));};});
+  var pss=scope.querySelector("#pasSearch");
+  if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
 }
 
 function openEdit(k){
@@ -201,6 +272,55 @@ document.getElementById("editForm").addEventListener("submit",function(e){
   var spaces=[];document.querySelectorAll("#eSpaceGrid input:checked").forEach(function(c){spaces.push(c.value);});
   var fields={title:document.getElementById("eTitle").value.trim(),date:document.getElementById("eDate").value,s:document.getElementById("eStart").value,e:document.getElementById("eEnd").value,spaces:spaces};
   doEditar(k,fields);
+});
+
+// ===== Adicionar ocorrência =====
+var addType="reserva", addTag="dept";
+function setSegBtns(segId,val){document.querySelectorAll("#"+segId+" button").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-k")===val?"true":"false");});}
+function openAdd(){
+  var dep=document.getElementById("aDept");dep.innerHTML="";cfgDeparts().forEach(function(x){dep.add(new Option(x,x));});
+  var pas=document.getElementById("aPastor");pas.innerHTML="";cfgPastores().forEach(function(x){pas.add(new Option(x,x));});
+  document.getElementById("aSpaceGrid").innerHTML=cfgEspacos().map(function(sp){return '<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>';}).join("");
+  document.getElementById("aTitle").value="";document.getElementById("aDate").value=keyOf(cur);document.getElementById("aStart").value="19:00";document.getElementById("aEnd").value="21:00";document.getElementById("aAprovar").checked=false;
+  addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");setSegBtns("aTagSeg","dept");dep.hidden=false;pas.hidden=true;
+  var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
+}
+document.getElementById("aTypeSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;addType=b.getAttribute("data-k");setSegBtns("aTypeSeg",addType);};
+document.getElementById("aTagSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;addTag=b.getAttribute("data-k");setSegBtns("aTagSeg",addTag);document.getElementById("aDept").hidden=addTag==="pastor";document.getElementById("aPastor").hidden=addTag!=="pastor";};
+document.getElementById("aCancel").onclick=function(){document.getElementById("addDialog").close();};
+document.getElementById("addForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var title=document.getElementById("aTitle").value.trim(),date=document.getElementById("aDate").value,s=document.getElementById("aStart").value,en=document.getElementById("aEnd").value;
+  var sp=[];document.querySelectorAll("#aSpaceGrid input:checked").forEach(function(c){sp.push(c.value);});
+  if(!title||!date){toast("Preencha título e data",true);return;}
+  if(!sp.length){toast("Escolha ao menos um espaço",true);return;}
+  if(toMin(en)<=toMin(s)){toast("Término deve ser depois do início",true);return;}
+  var data={title:title,tipo:addType,dept:addTag==="dept"?document.getElementById("aDept").value:"",tagPastor:addTag==="pastor"?document.getElementById("aPastor").value:"",solicitante:"Secretaria",date:date,s:s,e:en,spaces:sp};
+  var apr=document.getElementById("aAprovar").checked;
+  BUSY=true;toast("Salvando…");
+  google.script.run.withSuccessHandler(function(){BUSY=false;toast(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
+});
+
+// ===== Encaminhar atendimento (agenda) =====
+var encKey=null;
+function openEnc(k){
+  encKey=k;var p=PAS[k];if(!p)return;
+  var ps=document.getElementById("encPastor");ps.innerHTML="<option value=''>Escolher…</option>";cfgPastores().forEach(function(x){ps.add(new Option(x,x));});
+  var lo=document.getElementById("encLocal");lo.innerHTML="<option value=''>(sem sala)</option>";cfgEspacos().forEach(function(x){lo.add(new Option(x,x));});
+  try{lo.value="Sala de reunião/atendimento";}catch(e){}
+  document.getElementById("encSub").textContent="Membro: "+(p.nome||"")+(p.motivo?(" · "+p.motivo):"");
+  document.getElementById("encDate").value=keyOf(cur);document.getElementById("encStart").value="14:00";document.getElementById("encEnd").value="15:00";document.getElementById("encEmail").value="";
+  var d=document.getElementById("encDialog");if(d.showModal)d.showModal();
+}
+document.getElementById("encCancel").onclick=function(){document.getElementById("encDialog").close();};
+document.getElementById("encForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var p=PAS[encKey];if(!p)return;
+  var det={pastor:document.getElementById("encPastor").value,date:document.getElementById("encDate").value,s:document.getElementById("encStart").value,e:document.getElementById("encEnd").value,local:document.getElementById("encLocal").value,email:document.getElementById("encEmail").value.trim()};
+  if(!det.pastor){toast("Escolha o pastor",true);return;}
+  if(!det.date){toast("Escolha a data",true);return;}
+  BUSY=true;toast("Encaminhando…");
+  google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Encaminhado e agendado");document.getElementById("encDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).encaminharComAgenda(p,det);
 });
 
 var conflicts=[];
@@ -236,7 +356,7 @@ function render(){
   var eventsM=DATA.calendar.filter(function(c){return inCurMonth(c.date);}).length;
   var atendM=DATA.pastoral.filter(function(p){return (!p.status||p.status==="pendente")&&inCurMonth(p.date);}).length;
   app.innerHTML=
-    '<div class="refresh"><span class="rdot"></span> Atualizado '+hhmm+' · atualização automática a cada '+(REFRESH_MS/1000)+'s · <button id="refreshBtn">Atualizar agora</button></div>'+
+    '<div class="refresh"><span class="rdot"></span> Atualizado '+hhmm+' · atualização automática a cada '+(REFRESH_MS/1000)+'s · <button id="refreshBtn">Atualizar agora</button><button id="addOcc" class="btn-primary" style="margin-left:auto;padding:8px 14px">+ Adicionar ocorrência</button></div>'+
     err+
     '<div class="tiles">'+
       tile("warn",pendM,"pedidos pendentes")+
@@ -246,11 +366,13 @@ function render(){
     '</div>'+
     '<nav>'+
       tb("mes","Mês")+tb("pedidos","Pedidos",pendT)+tb("conflitos","Conflitos",conflicts.length)+tb("pastoral","Atendimento",pasT)+
+      '<button class="tab" data-t="admin" aria-selected="'+(tab==="admin")+'" style="margin-left:auto">⚙ Admin</button>'+
     '</nav>'+
     '<div id="body"></div>'+
     '<footer>Ao vivo · lê 3 planilhas + agenda fhopchurch@fhop.com. Aprovar cria evento na agenda e convida o solicitante. Estado guardado na planilha Central (servidor), não no navegador.</footer>';
   document.querySelectorAll(".tab").forEach(function(t){t.onclick=function(){tab=t.getAttribute("data-t");render();};});
   var rb=document.getElementById("refreshBtn"); if(rb) rb.onclick=function(){loadData();};
+  var ao=document.getElementById("addOcc"); if(ao) ao.onclick=function(){openAdd();};
   renderBody();
 }
 function tile(c,n,l){return '<div class="tile '+c+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';}
@@ -261,35 +383,93 @@ function renderBody(){
   if(tab==="mes")b.innerHTML=monthHtml();
   else if(tab==="pedidos")b.innerHTML=pedidosHtml();
   else if(tab==="conflitos")b.innerHTML=conflitosHtml();
-  else b.innerHTML=pastoralHtml();
+  else if(tab==="pastoral")b.innerHTML=pastoralHtml();
+  else if(tab==="admin")b.innerHTML=adminHtml();
   wireActions(b);
   if(tab==="mes"){
-    var gp=document.getElementById("gPrevM"),gn=document.getElementById("gNextM"),gt=document.getElementById("gToday");
-    if(gp)gp.onclick=function(){cur.setMonth(cur.getMonth()-1);render();};
-    if(gn)gn.onclick=function(){cur.setMonth(cur.getMonth()+1);render();};
+    var gp=document.getElementById("gPrev"),gn=document.getElementById("gNext"),gt=document.getElementById("gToday");
+    if(gp)gp.onclick=function(){shiftCur(-1);render();};
+    if(gn)gn.onclick=function(){shiftCur(1);render();};
     if(gt)gt.onclick=function(){cur=new Date();render();};
+    b.querySelectorAll(".viewseg button").forEach(function(x){x.onclick=function(){calView=x.getAttribute("data-v");render();};});
+    b.querySelectorAll("[data-day]").forEach(function(x){x.addEventListener("click",function(ev){ev.stopPropagation();cur=parseD(x.getAttribute("data-day"));render();});});
   }
+  if(tab==="admin")wireAdmin(b);
+}
+function shiftCur(dir){
+  if(calView==="mes")cur.setMonth(cur.getMonth()+dir);
+  else if(calView==="semana")cur.setDate(cur.getDate()+7*dir);
+  else cur.setDate(cur.getDate()+dir);
 }
 
-function eventsOn(dk){
+function evAll(dk){ // TODOS os eventos do dia (agenda + pedidos pendentes)
   var list=[];
-  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e});});
-  DATA.requests.forEach(function(r){if(r.date===dk&&r.spaces.length&&r.status==="pendente")list.push({t:reqInConflict(r)?"hit":"pend",title:r.title,s:r.s,e:r.e});});
+  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:c.space||""});});
+  DATA.requests.forEach(function(r){if(r.date===dk&&r.spaces.length&&r.status==="pendente")list.push({t:reqInConflict(r)?"hit":"pend",title:r.title,s:r.s,e:r.e,space:(r.spaces||[]).join(", "),key:r.key});});
   return list.sort(function(a,b){return toMin(a.s)-toMin(b.s);});
 }
+function pillHtml(e){return '<div class="pill '+e.t+'">'+(e.s?'<b>'+e.s+'</b> ':'')+esc(e.title)+'</div>';}
+
+function viewBar(label){
+  return '<div class="toolbar">'+
+    '<button class="navbtn" id="gPrev">‹</button>'+
+    '<div class="curlabel">'+label+'</div>'+
+    '<button class="navbtn" id="gNext">›</button>'+
+    '<button class="navbtn" id="gToday">Hoje</button>'+
+    '<div class="viewseg" style="margin-left:auto">'+
+      '<button class="'+(calView==="mes"?"on":"")+'" data-v="mes">Mês</button>'+
+      '<button class="'+(calView==="semana"?"on":"")+'" data-v="semana">Semana</button>'+
+      '<button class="'+(calView==="dia"?"on":"")+'" data-v="dia">Dia</button>'+
+    '</div></div>';
+}
+function dayDetailHtml(dk){
+  var dt=parseD(dk), evs=evAll(dk);
+  var h='<div class="daydetail"><h3>'+DIAS[dt.getDay()]+', '+dt.getDate()+' de '+MESES[dt.getMonth()]+'</h3>';
+  if(!evs.length){ h+='<div class="dd-empty">Nenhuma reserva neste dia.</div></div>'; return h; }
+  h+='<div class="rows">';
+  evs.forEach(function(e){
+    var badge=e.t==="conf"?'<span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>':(e.t==="hit"?'<span class="chip crit">⚠ conflito</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">pedido</span>');
+    h+='<div class="row plain"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+badge+(e.space?'<span class="chip space">'+esc(e.space)+'</span>':'')+'</span></div><span class="rwhen mono">'+esc(e.s)+'–'+esc(e.e)+'</span></div>';
+  });
+  return h+'</div></div>';
+}
+
 function monthHtml(){
+  if(calView==="semana") return semanaHtml();
+  if(calView==="dia") return diaHtml();
   var f=new Date(cur.getFullYear(),cur.getMonth(),1),st=new Date(f);st.setDate(1-f.getDay());
-  var h='<div class="toolbar"><button class="navbtn" id="gPrevM">‹</button><div class="curlabel">'+MESES[cur.getMonth()]+' '+cur.getFullYear()+'</div><button class="navbtn" id="gNextM">›</button><button class="navbtn" id="gToday">Hoje</button></div>';
+  var h=viewBar(MESES[cur.getMonth()]+' '+cur.getFullYear());
   h+='<div class="monthscroll"><table class="month"><thead><tr>'+DIAS.map(function(d){return "<th>"+d+"</th>";}).join("")+'</tr></thead><tbody>';
-  var d=new Date(st);
+  var d=new Date(st), selK=keyOf(cur);
   for(var w=0;w<6;w++){h+="<tr>";for(var k=0;k<7;k++){
-    var dk=keyOf(d),out=d.getMonth()!==cur.getMonth(),evs=eventsOn(dk),hc=evs.some(function(e){return e.t==="hit";});
-    h+='<td><div class="day'+(out?" out":"")+'"><div class="dn"><span>'+d.getDate()+'</span>'+(hc?'<span class="cflag">!</span>':'')+'</div>';
-    evs.slice(0,3).forEach(function(e){h+='<div class="pill '+e.t+'">'+(e.s?e.s+" ":"")+esc(e.title)+'</div>';});
-    if(evs.length>3)h+='<div class="pill" style="border:0;color:var(--ink-faint)">+'+(evs.length-3)+'</div>';
+    var dk=keyOf(d),out=d.getMonth()!==cur.getMonth(),evs=evAll(dk),hc=evs.some(function(e){return e.t==="hit";});
+    h+='<td><div class="day'+(out?" out":"")+(dk===selK?" sel":"")+'" data-day="'+dk+'"><div class="dn"><span>'+d.getDate()+'</span>'+(hc?'<span class="cflag">!</span>':'')+'</div>';
+    evs.slice(0,3).forEach(function(e){h+=pillHtml(e);});
+    if(evs.length>3)h+='<div class="pill morep" data-day="'+dk+'">+'+(evs.length-3)+' ver todos</div>';
     h+='</div></td>';d.setDate(d.getDate()+1);
   }h+="</tr>";if(d.getMonth()!==cur.getMonth()&&w>=4)break;}
-  return h+'</tbody></table></div>';
+  h+='</tbody></table></div>';
+  h+=dayDetailHtml(selK);
+  return h;
+}
+function semanaHtml(){
+  var st=new Date(cur);st.setDate(st.getDate()-st.getDay()); // domingo
+  var end=new Date(st);end.setDate(end.getDate()+6);
+  var lab='Semana de '+st.getDate()+' '+MESAB[st.getMonth()]+' – '+end.getDate()+' '+MESAB[end.getMonth()];
+  var h=viewBar(lab)+'<div class="weekgrid">';
+  var d=new Date(st), selK=keyOf(cur);
+  for(var k=0;k<7;k++){
+    var dk=keyOf(d),evs=evAll(dk),hc=evs.some(function(e){return e.t==="hit";});
+    h+='<div class="weekday'+(dk===selK?" sel":"")+'" data-day="'+dk+'"><div class="wh">'+DIAS[d.getDay()]+' '+d.getDate()+(hc?' <span class="cflag">!</span>':'')+'</div>';
+    if(!evs.length)h+='<div class="wempty">—</div>';
+    evs.forEach(function(e){h+=pillHtml(e);});
+    h+='</div>';d.setDate(d.getDate()+1);
+  }
+  return h+'</div>';
+}
+function diaHtml(){
+  var lab=DIAS[cur.getDay()]+', '+cur.getDate()+' de '+MESES[cur.getMonth()]+' '+cur.getFullYear();
+  return viewBar(lab)+dayDetailHtml(keyOf(cur));
 }
 function actionsHtml(r){
   if(r.status==="aprovado")return '<div class="rowactions"><button class="btn-sm crit" data-desfazer="'+esc(r.key)+'">↩ Desfazer</button></div>';
@@ -328,16 +508,64 @@ function conflitosHtml(){
   }).join("")+'</div>';
 }
 function pastoralHtml(){
-  var pend=DATA.pastoral.filter(function(p){return !p.status||p.status==="pendente";});
+  var all=DATA.pastoral.filter(function(p){return !p.status||p.status==="pendente";});
+  var q=(window._pasQ||"").toLowerCase();
+  var pend=all.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
   var enc=DATA.pastoral.filter(function(p){return p.status==="encaminhado";}).length;
-  var summ='<p class="summ">'+pend.length+' aguardando · '+enc+' encaminhado(s). Escolha um pastor e clique Encaminhar.</p>';
-  if(!pend.length)return summ+'<div class="empty">Nenhum atendimento aguardando.</div>';
-  var opts='<option value="">Encaminhar para…</option>'+PASTORES.map(function(p){return '<option>'+esc(p)+'</option>';}).join("");
-  return summ+'<div class="rows">'+pend.map(function(p){
+  var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+pend.length+' aguardando · '+enc+' encaminhado(s)</span></div>';
+  if(!pend.length)return bar+'<div class="empty">Nenhum atendimento aguardando.</div>';
+  return bar+'<div class="rows">'+pend.map(function(p){
     return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+esc(p.motivo)+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':'')+'</div>'+
-      '<select class="passel" data-k="'+esc(p.key)+'">'+opts+'</select>'+
-      '<div class="rowactions"><button class="btn-sm ok" data-enc="'+esc(p.key)+'">✓ Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div></div>';
+      '<div class="rowactions"><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div></div>';
   }).join("")+'</div>';
+}
+
+// ===== Admin =====
+var ADMIN=null;
+function srcF(k,label,val){return '<div class="field"><label>'+label+'</label><input data-src="'+k+'" value="'+esc(val||"")+'"></div>';}
+function chipList(key,arr){
+  return '<div class="chiplist">'+arr.map(function(v,i){return '<span class="chip-ed">'+esc(v)+'<button data-del="'+key+'" data-i="'+i+'">×</button></span>';}).join("")+'</div>'+
+    '<div class="addline"><input type="text" data-addinp="'+key+'" placeholder="adicionar…"><button class="btn-sm" data-add="'+key+'">+ Adicionar</button></div>';
+}
+function adminHtml(){
+  if(!ADMIN) ADMIN = CFG ? JSON.parse(JSON.stringify(CFG)) : null;
+  if(!ADMIN) return '<div class="empty">Carregando configurações…</div>';
+  var A=ADMIN;
+  var h='<div class="callout">Conectado como <b>'+esc(ME.email||"—")+'</b>'+(ME.admin?' · <b style="color:var(--ok)">Administrador</b>':' · sem permissão')+'. Só a secretaria altera estas configurações e dispara e-mails.</div>';
+  h+='<div class="adminsec"><h3>Fontes de dados (links/IDs)</h3><p class="ahint">De onde o painel lê. Cole o link ou o ID.</p>'+
+    srcF("form1_reserva","Planilha — Reserva de espaço (Form 1)",A.fontes.form1_reserva)+
+    srcF("form2_pastoral","Planilha — Atendimento pastoral (Form 2)",A.fontes.form2_pastoral)+
+    srcF("form3_reserva","Planilha — Reserva pastoral (Form 3)",A.fontes.form3_reserva)+
+    srcF("agenda","Google Agenda (ID/e-mail)",A.fontes.agenda)+'</div>';
+  h+='<div class="adminsec"><h3>Link do painel (botão "Área da secretaria")</h3><p class="ahint">Cole a URL do painel (implantação do Índice). Vira um botão na página pública de reserva para a equipe entrar.</p><div class="field"><input data-cfg="linkPainel" value="'+esc(A.linkPainel||"")+'" placeholder="https://script.google.com/.../exec"></div></div>';
+  h+='<div class="adminsec"><h3>Acesso ao painel (e-mails)</h3><p class="ahint">Só estes e-mails abrem o painel; os demais veem a página de reserva.</p>'+chipList("allowlist",A.allowlist)+'</div>';
+  h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
+  h+='<div class="adminsec"><h3>Departamentos</h3>'+chipList("departamentos",A.departamentos)+'</div>';
+  h+='<div class="adminsec"><h3>Pastores (nome + e-mail)</h3><p class="ahint">E-mails usados para avisos pastorais.</p>';
+  A.pastores.forEach(function(p,i){h+='<div class="pxrow"><input data-prow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-prow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="pastores" data-i="'+i+'">×</button></div>';});
+  h+='<button class="btn-sm" data-addrow="pastores">+ Pastor</button></div>';
+  h+='<div class="adminsec"><h3>Responsáveis (patrimônio / AV / secretaria)</h3><p class="ahint">Ex.: Wanderson (Patrimônio), Bruna (Audiovisual).</p>';
+  A.responsaveis.forEach(function(p,i){h+='<div class="pxrow"><input data-rrow="'+i+'" data-f="papel" value="'+esc(p.papel||"")+'" placeholder="Papel"><input data-rrow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-rrow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="responsaveis" data-i="'+i+'">×</button></div>';});
+  h+='<button class="btn-sm" data-addrow="responsaveis">+ Responsável</button></div>';
+  h+='<div style="display:flex;gap:10px;align-items:center;margin-top:6px"><button class="btn-primary" id="admSave">Salvar alterações</button><button class="btn-sm" id="admReload">Descartar</button></div>';
+  return h;
+}
+function collectAdmin(scope){
+  scope.querySelectorAll("[data-src]").forEach(function(inp){ADMIN.fontes[inp.getAttribute("data-src")]=inp.value.trim();});
+  scope.querySelectorAll("[data-cfg]").forEach(function(inp){ADMIN[inp.getAttribute("data-cfg")]=inp.value.trim();});
+  var pmap={};scope.querySelectorAll("[data-prow]").forEach(function(inp){var i=inp.getAttribute("data-prow");(pmap[i]=pmap[i]||{})[inp.getAttribute("data-f")]=inp.value.trim();});
+  if(Object.keys(pmap).length)ADMIN.pastores=Object.keys(pmap).map(function(i){return pmap[i];}).filter(function(p){return p.nome;});
+  var rmap={};scope.querySelectorAll("[data-rrow]").forEach(function(inp){var i=inp.getAttribute("data-rrow");(rmap[i]=rmap[i]||{})[inp.getAttribute("data-f")]=inp.value.trim();});
+  if(Object.keys(rmap).length)ADMIN.responsaveis=Object.keys(rmap).map(function(i){return rmap[i];}).filter(function(p){return p.papel||p.nome;});
+}
+function reRenderAdmin(){var b=document.getElementById("body");b.innerHTML=adminHtml();wireAdmin(b);}
+function wireAdmin(scope){
+  scope.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-del")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
+  scope.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-add");var inp=scope.querySelector('[data-addinp="'+key+'"]');var v=inp.value.trim();if(v&&ADMIN[key].indexOf(v)<0){ADMIN[key].push(v);}reRenderAdmin();};});
+  scope.querySelectorAll("[data-delrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-delrow")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
+  scope.querySelectorAll("[data-addrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-addrow");ADMIN[key].push(key==="pastores"?{nome:"",email:""}:{papel:"",nome:"",email:""});reRenderAdmin();};});
+  var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN);};
+  var rl=document.getElementById("admReload");if(rl)rl.onclick=function(){ADMIN=CFG?JSON.parse(JSON.stringify(CFG)):null;reRenderAdmin();toast("Alterações descartadas");};
 }
 
 // carrega os dados do servidor (com atualização automática)
@@ -351,6 +579,8 @@ function loadData(){
     })
     .getDados();
 }
+google.script.run.withSuccessHandler(function(m){ME=m||ME; var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe();
+google.script.run.withSuccessHandler(function(c){CFG=c;}).getConfig();
 loadData();
 setInterval(loadData, REFRESH_MS); // relê sozinho — novos pedidos aparecem em qualquer dispositivo
 </script>
