@@ -16,6 +16,9 @@ var FONTES = {
 var TZ = 'America/Sao_Paulo';
 var CORTE = '2026-08-23'; // só lê desta data em diante (evita poluir e acelera)
 
+// E-mails que podem abrir o PAINEL da secretaria. Qualquer outro cai na página de reserva.
+var ALLOWLIST = ['fhopchurch@fhop.com','paulotaborda@fhop.com','guilhermejoa11@gmail.com'];
+
 // Dicionário de normalização de espaços (o "de-para")
 var ALIASES = {
   'auditorio':'Auditório','auditório':'Auditório','novo auditorio':'Auditório','auditório principal':'Auditório','auditorio principal':'Auditório',
@@ -36,10 +39,14 @@ function norm(raw){
   return null;
 }
 
-/** Serve o painel HTML */
+/** Serve o painel (autorizados) ou a página pública de reserva (demais/param). */
 function doGet(e){
-  return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('Central de Reservas FHOP')
+  var p = (e && e.parameter && e.parameter.p) || '';
+  var email = ''; try { email = Session.getActiveUser().getEmail() || ''; } catch(_){}
+  var autorizado = ALLOWLIST.indexOf(email) > -1;
+  var arquivo = (p === 'reserva' || !autorizado) ? 'Reserva' : 'Index';
+  return HtmlService.createHtmlOutputFromFile(arquivo)
+    .setTitle(arquivo === 'Reserva' ? 'Reserva de Espaço · FHOP' : 'Central de Reservas FHOP')
     .addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 
@@ -54,13 +61,25 @@ function col(headers, needle){
 
 function fmtDate(v){
   if(v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  if(typeof v === 'number'){ // número de série do Sheets (dias desde 1899-12-30)
+    var base = new Date(Date.UTC(1899,11,30));
+    base.setUTCDate(base.getUTCDate() + Math.floor(v));
+    return Utilities.formatDate(base, 'UTC', 'yyyy-MM-dd');
+  }
   var s = String(v||'').trim();
   var m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy
   if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+  m = s.match(/(\d{4})-(\d{2})-(\d{2})/); // já ISO
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
   return s;
 }
 function fmtTime(v){
   if(v instanceof Date) return Utilities.formatDate(v, TZ, 'HH:mm');
+  if(typeof v === 'number'){ // fração do dia (0.8125 = 19:30)
+    var frac = v - Math.floor(v);
+    var mins = Math.round(frac * 24 * 60);
+    return pad(Math.floor(mins/60)) + ':' + pad(mins%60);
+  }
   var s = String(v||'').trim();
   var m = s.match(/(\d{1,2}):(\d{2})/);
   if(m) return pad(m[1])+':'+m[2];
@@ -158,16 +177,23 @@ function getDados(){
     }
   }catch(err){ out.erros.push('Agenda: '+err); }
 
-  // ---- Anexa o ESTADO (aprovado/recusado/encaminhado) guardado no servidor ----
+  // ---- Anexa o ESTADO (aprovado/recusado/encaminhado/excluído/editado) ----
   var estado = readEstado_();
   out.requests.forEach(function(r){
     var st = estado[r.key];
-    if(st){ r.status = st.status; r.eventId = st.eventId; if(st.pastor) r.tagPastor = st.pastor; }
-    else r.status = 'pendente';
+    if(st){
+      r.status = st.status || 'pendente'; r.eventId = st.eventId; if(st.pastor) r.tagPastor = st.pastor;
+      if(st.override){ var o = st.override;
+        if(o.title) r.title = o.title; if(o.date) r.date = o.date;
+        if(o.s) r.s = o.s; if(o.e) r.e = o.e; if(o.spaces) r.spaces = o.spaces;
+        if(o.dept) r.dept = o.dept; if(o.email!=null) r.email = o.email;
+        r.editado = true;
+      }
+    } else r.status = 'pendente';
   });
   out.pastoral.forEach(function(p){
     var st = estado[p.key];
-    if(st){ p.status = st.status; p.pastor = st.pastor; }
+    if(st){ p.status = st.status || 'pendente'; p.pastor = st.pastor; }
     else p.status = 'pendente';
   });
 
@@ -179,20 +205,19 @@ function getDados(){
  * Nada disso fica no navegador; vale em qualquer dispositivo.
  * ========================================================= */
 
+var CENTRAL_COLS = ['key','status','pastor','eventId','override','titulo','quando','quem'];
+
 function getCentral_(){
   var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty('CENTRAL_ID'), ss;
-  if(id){
-    try { ss = SpreadsheetApp.openById(id); } catch(e){ id = null; }
-  }
+  var id = props.getProperty('CENTRAL_ID_V2'), ss;
+  if(id){ try { ss = SpreadsheetApp.openById(id); } catch(e){ id = null; } }
   if(!id){
     ss = SpreadsheetApp.create('FHOP — Central de Reservas (Estado)');
-    props.setProperty('CENTRAL_ID', ss.getId());
-    var sh0 = ss.getSheets()[0]; sh0.setName('estado');
-    sh0.appendRow(['key','status','pastor','eventId','titulo','quando','quem']);
+    props.setProperty('CENTRAL_ID_V2', ss.getId());
+    var sh0 = ss.getSheets()[0]; sh0.setName('estado'); sh0.appendRow(CENTRAL_COLS);
   }
   var sh = ss.getSheetByName('estado');
-  if(!sh){ sh = ss.insertSheet('estado'); sh.appendRow(['key','status','pastor','eventId','titulo','quando','quem']); }
+  if(!sh){ sh = ss.insertSheet('estado'); sh.appendRow(CENTRAL_COLS); }
   return sh;
 }
 
@@ -200,21 +225,28 @@ function readEstado_(){
   var sh = getCentral_(), v = sh.getDataRange().getValues(), map = {};
   for(var i=1;i<v.length;i++){
     var row = v[i]; if(!row[0]) continue;
-    map[row[0]] = { status: row[1], pastor: row[2], eventId: row[3] };
+    var ov = null; if(row[4]){ try { ov = JSON.parse(row[4]); } catch(e){} }
+    map[row[0]] = { status: row[1], pastor: row[2], eventId: row[3], override: ov };
   }
   return map;
 }
 
-// upsert por key
-function writeEstado_(key, status, pastor, eventId, titulo){
-  var sh = getCentral_(), v = sh.getDataRange().getValues(), found = -1;
-  for(var i=1;i<v.length;i++){ if(v[i][0]===key){ found = i+1; break; } }
-  var who = '';
-  try { who = Session.getActiveUser().getEmail() || ''; } catch(e){}
+// upsert por key — aplica só os campos passados em patch, preserva o resto
+function upsertEstado_(key, patch){
+  var sh = getCentral_(), v = sh.getDataRange().getValues(), found = -1, cur = null;
+  for(var i=1;i<v.length;i++){ if(v[i][0]===key){ found = i+1; cur = v[i]; break; } }
+  var who = ''; try { who = Session.getActiveUser().getEmail() || ''; } catch(e){}
   var when = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-  var rowData = [key, status, pastor||'', eventId||'', titulo||'', when, who];
-  if(found>0) sh.getRange(found,1,1,7).setValues([rowData]);
-  else sh.appendRow(rowData);
+  var row = {
+    status:  patch.status  !== undefined ? patch.status  : (cur ? cur[1] : 'pendente'),
+    pastor:  patch.pastor  !== undefined ? patch.pastor  : (cur ? cur[2] : ''),
+    eventId: patch.eventId !== undefined ? patch.eventId : (cur ? cur[3] : ''),
+    override:patch.override!== undefined ? (patch.override?JSON.stringify(patch.override):'') : (cur ? cur[4] : ''),
+    titulo:  patch.titulo  !== undefined ? patch.titulo  : (cur ? cur[5] : '')
+  };
+  var data = [key, row.status, row.pastor, row.eventId, row.override, row.titulo, when, who];
+  if(found>0) sh.getRange(found,1,1,8).setValues([data]);
+  else sh.appendRow(data);
 }
 
 function mkDate_(date, time){
@@ -234,32 +266,51 @@ function aprovar(req){
   var opts = { location: local, description: desc };
   if(req.email && /@/.test(req.email)){ opts.guests = req.email; opts.sendInvites = true; }
   var ev = cal.createEvent(titulo, start, end, opts);
-  writeEstado_(req.key, 'aprovado', req.tagPastor||'', ev.getId(), req.title);
+  upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   return { ok:true, eventId: ev.getId() };
 }
 
 /** Recusar: marca como recusado (não cria evento). */
 function recusar(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
-  writeEstado_(req.key, 'recusado', req.tagPastor||'', '', req.title||'');
+  upsertEstado_(req.key, { status:'recusado', titulo:req.title||'' });
   return { ok:true };
 }
 
-/** Desfazer: remove o evento criado e volta a pendente. */
+/** Excluir/ocultar: some da lista, MAS não apaga da planilha do formulário. */
+function excluir(item){
+  if(!item || !item.key) throw new Error('Item inválido.');
+  // se tiver evento criado, remove da agenda também
+  var estado = readEstado_(), st = estado[item.key];
+  if(st && st.eventId){
+    try { var cal = CalendarApp.getCalendarById(FONTES.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+  }
+  upsertEstado_(item.key, { status:'excluido', eventId:'' });
+  return { ok:true };
+}
+
+/** Desfazer: remove o evento criado e volta a pendente (limpa exclusão também). */
 function desfazer(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
   var estado = readEstado_(), st = estado[req.key];
   if(st && st.eventId){
     try { var cal = CalendarApp.getCalendarById(FONTES.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
   }
-  writeEstado_(req.key, 'pendente', '', '', req.title||'');
+  upsertEstado_(req.key, { status:'pendente', eventId:'' });
+  return { ok:true };
+}
+
+/** Editar: guarda uma correção (título/data/hora/espaços/depto/email) sem mexer na planilha do formulário. */
+function editar(req, campos){
+  if(!req || !req.key || !campos) throw new Error('Dados inválidos.');
+  upsertEstado_(req.key, { override: campos });
   return { ok:true };
 }
 
 /** Encaminhar atendimento pastoral a um pastor (sem criar evento). */
 function encaminhar(item, pastor){
   if(!item || !item.key || !pastor) throw new Error('Dados inválidos.');
-  writeEstado_(item.key, 'encaminhado', pastor, '', item.nome||'');
+  upsertEstado_(item.key, { status:'encaminhado', pastor:pastor, titulo:item.nome||'' });
   return { ok:true };
 }
 

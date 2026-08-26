@@ -16,7 +16,7 @@
   .wrap{max-width:1160px;margin:0 auto;padding:22px clamp(14px,4vw,34px) 80px}
   .mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
   .top{display:flex;align-items:center;gap:11px}
-  .logo{height:30px;width:auto;display:block}
+  .logo{height:30px;width:auto;max-width:100%;display:block;overflow:visible}
   .s{font-size:11px;color:var(--ink-faint);letter-spacing:.13em;text-transform:uppercase;font-weight:600}
   h1{font-family:"Archivo";font-weight:800;font-size:clamp(24px,4vw,32px);letter-spacing:-.02em;margin:18px 0 4px}
   .sub{color:var(--ink-soft);font-size:14px;margin:0}
@@ -72,6 +72,23 @@
   .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:12px}
+  dialog{border:0;border-radius:16px;padding:0;max-width:520px;width:calc(100% - 28px);background:var(--surface);color:var(--ink);box-shadow:0 24px 60px rgba(0,0,0,.32)}
+  dialog::backdrop{background:rgba(10,10,10,.42)}
+  .dlg{padding:20px 22px 22px}
+  .dlg h2{font-family:"Archivo",sans-serif;font-weight:800;font-size:19px;margin:0 0 3px}
+  .dsub{color:var(--ink-faint);font-size:12.5px;margin:0 0 16px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+  .field>label{font-size:12px;font-weight:600;color:var(--ink-soft)}
+  .field input{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  @media(max-width:460px){.grid2{grid-template-columns:1fr}}
+  .spacegrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  @media(max-width:460px){.spacegrid{grid-template-columns:1fr}}
+  .spacegrid label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
+  .spacegrid input{width:auto;accent-color:var(--accent)}
+  .dlg-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:9px 15px;border-radius:9px;cursor:pointer}
+  .btn-primary{border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer}
   .refresh{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink-faint);margin:16px 0 0;flex-wrap:wrap}
   .refresh button{border:1px solid var(--line-strong);background:var(--surface);color:var(--accent-ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .refresh button:hover{border-color:var(--accent)}
@@ -83,10 +100,10 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <svg class="logo" viewBox="0 0 340 84" role="img" aria-label="fhop church">
-      <text x="0" y="63" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="70" letter-spacing="-3" style="fill:var(--ink)">fhop</text>
-      <rect x="158" y="4" width="178" height="76" rx="18" style="fill:var(--ink)"></rect>
-      <text x="176" y="63" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="70" letter-spacing="-3" style="fill:var(--ground)">church</text>
+    <svg class="logo" viewBox="0 0 500 92" role="img" aria-label="fhop church" preserveAspectRatio="xMinYMid meet">
+      <text x="2" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ink)">fhop</text>
+      <rect x="170" y="6" width="322" height="80" rx="20" style="fill:var(--ink)"></rect>
+      <text x="192" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ground)">church</text>
     </svg>
     <span class="live"><span class="dot"></span> Ao vivo</span>
   </div>
@@ -96,6 +113,20 @@
 
   <div id="app"><div class="loading"><div class="spin"></div>Lendo planilhas e agenda…</div></div>
 </div>
+
+<dialog id="editDialog">
+  <form method="dialog" class="dlg" id="editForm">
+    <h2>Editar ocorrência</h2>
+    <p class="dsub">Corrige os dados aqui. <b>Não altera a planilha do formulário</b> — a correção fica guardada na Central.</p>
+    <div class="field"><label for="eTitle">Título / evento</label><input id="eTitle" type="text"></div>
+    <div class="grid2">
+      <div class="field"><label for="eDate">Data</label><input id="eDate" type="date"></div>
+      <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="eStart" type="time" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="eEnd" type="time" style="flex:1"></div></div>
+    </div>
+    <div class="field"><label>Espaço(s)</label><div class="spacegrid" id="eSpaceGrid"></div></div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="eCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar</button></div>
+  </form>
+</dialog>
 
 <script>
 var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -113,6 +144,7 @@ function p2(n){n=String(n);return n.length<2?"0"+n:n;}
 function inCurMonth(d){if(!d)return false;var t=parseD(d);return t.getFullYear()===cur.getFullYear()&&t.getMonth()===cur.getMonth();}
 
 var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
+var CANON=["Auditório","Nave do Templo","Sala 1","Sala 2","Área Gourmet","Sala Verde/Estúdio","Sala de reunião/atendimento","Briefing","Estacionamento"];
 var REQ={}, PAS={}, BUSY=false;
 function indexData(){REQ={};PAS={};DATA.requests.forEach(function(r){REQ[r.key]=r;});DATA.pastoral.forEach(function(p){PAS[p.key]=p;});}
 
@@ -134,18 +166,42 @@ function serverAct(fnName, arg, okMsg){
 function doAprovar(k){var r=REQ[k];if(r)serverAct("aprovar",r,"✓ Aprovado — evento criado na agenda");}
 function doRecusar(k){var r=REQ[k];if(r)serverAct("recusar",r,"✕ Recusado");}
 function doDesfazer(k){var r=REQ[k];if(r)serverAct("desfazer",r,"↩ Desfeito");}
+function doExcluir(k){var it=REQ[k]||PAS[k];if(it)serverAct("excluir",it,"🗑 Removido da lista (planilha intacta)");}
 function doEncaminhar(k,pastor){var p=PAS[k];if(p&&pastor){BUSY=true;toast("Encaminhando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Encaminhado a "+pastor);loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).encaminhar(p,pastor);}}
+function doEditar(k,fields){var r=REQ[k];if(!r)return;BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✎ Alterações salvas");document.getElementById("editDialog").close();loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).editar(r,fields);}
 
 function wireActions(scope){
   scope.querySelectorAll("[data-aprovar]").forEach(function(b){b.onclick=function(){doAprovar(b.getAttribute("data-aprovar"));};});
   scope.querySelectorAll("[data-recusar]").forEach(function(b){b.onclick=function(){doRecusar(b.getAttribute("data-recusar"));};});
   scope.querySelectorAll("[data-desfazer]").forEach(function(b){b.onclick=function(){doDesfazer(b.getAttribute("data-desfazer"));};});
+  scope.querySelectorAll("[data-excluir]").forEach(function(b){b.onclick=function(){doExcluir(b.getAttribute("data-excluir"));};});
+  scope.querySelectorAll("[data-editar]").forEach(function(b){b.onclick=function(){openEdit(b.getAttribute("data-editar"));};});
   scope.querySelectorAll("[data-enc]").forEach(function(b){b.onclick=function(){
     var sel=scope.querySelector('.passel[data-k="'+b.getAttribute("data-enc")+'"]');
     if(!sel.value){toast("Escolha um pastor",true);return;}
     doEncaminhar(b.getAttribute("data-enc"),sel.value);
   };});
 }
+
+function openEdit(k){
+  var r=REQ[k]; if(!r)return;
+  document.getElementById("eTitle").value=r.title||"";
+  document.getElementById("eDate").value=(r.date&&/^\d{4}-\d{2}-\d{2}$/.test(r.date))?r.date:"";
+  document.getElementById("eStart").value=(r.s&&/^\d{1,2}:\d{2}$/.test(r.s))?r.s:"";
+  document.getElementById("eEnd").value=(r.e&&/^\d{1,2}:\d{2}$/.test(r.e))?r.e:"";
+  var grid=document.getElementById("eSpaceGrid");
+  grid.innerHTML=CANON.map(function(sp){var ck=(r.spaces||[]).indexOf(sp)>-1?" checked":"";return '<label><input type="checkbox" value="'+esc(sp)+'"'+ck+'> '+esc(sp)+'</label>';}).join("");
+  grid.setAttribute("data-key",k);
+  var d=document.getElementById("editDialog"); if(d.showModal)d.showModal(); else d.setAttribute("open","");
+}
+document.getElementById("eCancel").onclick=function(){document.getElementById("editDialog").close();};
+document.getElementById("editForm").addEventListener("submit",function(e){
+  e.preventDefault();
+  var k=document.getElementById("eSpaceGrid").getAttribute("data-key");
+  var spaces=[];document.querySelectorAll("#eSpaceGrid input:checked").forEach(function(c){spaces.push(c.value);});
+  var fields={title:document.getElementById("eTitle").value.trim(),date:document.getElementById("eDate").value,s:document.getElementById("eStart").value,e:document.getElementById("eEnd").value,spaces:spaces};
+  doEditar(k,fields);
+});
 
 var conflicts=[];
 function computeConflicts(){
@@ -182,8 +238,6 @@ function render(){
   app.innerHTML=
     '<div class="refresh"><span class="rdot"></span> Atualizado '+hhmm+' · atualização automática a cada '+(REFRESH_MS/1000)+'s · <button id="refreshBtn">Atualizar agora</button></div>'+
     err+
-    '<div class="monthnav"><button class="navbtn" id="gPrevM">←</button><div class="curlabel">'+MESES[cur.getMonth()]+' '+cur.getFullYear()+'</div><button class="navbtn" id="gNextM">→</button><button class="navbtn" id="gToday">Hoje</button></div>'+
-    '<p class="mnhint" style="text-align:center;margin:0 0 6px">os cards mostram os números deste mês</p>'+
     '<div class="tiles">'+
       tile("warn",pendM,"pedidos pendentes")+
       tile("crit",conflM,"conflito"+(conflM===1?"":"s"))+
@@ -197,10 +251,6 @@ function render(){
     '<footer>Ao vivo · lê 3 planilhas + agenda fhopchurch@fhop.com. Aprovar cria evento na agenda e convida o solicitante. Estado guardado na planilha Central (servidor), não no navegador.</footer>';
   document.querySelectorAll(".tab").forEach(function(t){t.onclick=function(){tab=t.getAttribute("data-t");render();};});
   var rb=document.getElementById("refreshBtn"); if(rb) rb.onclick=function(){loadData();};
-  var gp=document.getElementById("gPrevM"),gn=document.getElementById("gNextM"),gt=document.getElementById("gToday");
-  if(gp)gp.onclick=function(){cur.setMonth(cur.getMonth()-1);render();};
-  if(gn)gn.onclick=function(){cur.setMonth(cur.getMonth()+1);render();};
-  if(gt)gt.onclick=function(){cur=new Date();render();};
   renderBody();
 }
 function tile(c,n,l){return '<div class="tile '+c+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';}
@@ -213,6 +263,12 @@ function renderBody(){
   else if(tab==="conflitos")b.innerHTML=conflitosHtml();
   else b.innerHTML=pastoralHtml();
   wireActions(b);
+  if(tab==="mes"){
+    var gp=document.getElementById("gPrevM"),gn=document.getElementById("gNextM"),gt=document.getElementById("gToday");
+    if(gp)gp.onclick=function(){cur.setMonth(cur.getMonth()-1);render();};
+    if(gn)gn.onclick=function(){cur.setMonth(cur.getMonth()+1);render();};
+    if(gt)gt.onclick=function(){cur=new Date();render();};
+  }
 }
 
 function eventsOn(dk){
@@ -223,7 +279,7 @@ function eventsOn(dk){
 }
 function monthHtml(){
   var f=new Date(cur.getFullYear(),cur.getMonth(),1),st=new Date(f);st.setDate(1-f.getDay());
-  var h='';
+  var h='<div class="toolbar"><button class="navbtn" id="gPrevM">‹</button><div class="curlabel">'+MESES[cur.getMonth()]+' '+cur.getFullYear()+'</div><button class="navbtn" id="gNextM">›</button><button class="navbtn" id="gToday">Hoje</button></div>';
   h+='<div class="monthscroll"><table class="month"><thead><tr>'+DIAS.map(function(d){return "<th>"+d+"</th>";}).join("")+'</tr></thead><tbody>';
   var d=new Date(st);
   for(var w=0;w<6;w++){h+="<tr>";for(var k=0;k<7;k++){
@@ -238,7 +294,12 @@ function monthHtml(){
 function actionsHtml(r){
   if(r.status==="aprovado")return '<div class="rowactions"><button class="btn-sm crit" data-desfazer="'+esc(r.key)+'">↩ Desfazer</button></div>';
   if(r.status==="recusado")return '<div class="rowactions"><button class="btn-sm" data-desfazer="'+esc(r.key)+'">↩ Reabrir</button></div>';
-  return '<div class="rowactions"><button class="btn-sm ok" data-aprovar="'+esc(r.key)+'">✓ Aprovar</button><button class="btn-sm crit" data-recusar="'+esc(r.key)+'">✕ Recusar</button></div>';
+  return '<div class="rowactions">'+
+    '<button class="btn-sm ok" data-aprovar="'+esc(r.key)+'">✓ Aprovar</button>'+
+    '<button class="btn-sm crit" data-recusar="'+esc(r.key)+'">✕ Recusar</button>'+
+    '<button class="btn-sm" data-editar="'+esc(r.key)+'">✎ Editar</button>'+
+    '<button class="btn-sm" data-excluir="'+esc(r.key)+'">🗑</button>'+
+  '</div>';
 }
 function statusChip(r){
   if(r.status==="aprovado")return '<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ aprovado</span>';
@@ -275,7 +336,7 @@ function pastoralHtml(){
   return summ+'<div class="rows">'+pend.map(function(p){
     return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+esc(p.motivo)+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':'')+'</div>'+
       '<select class="passel" data-k="'+esc(p.key)+'">'+opts+'</select>'+
-      '<div class="rowactions"><button class="btn-sm ok" data-enc="'+esc(p.key)+'">✓ Encaminhar</button></div></div>';
+      '<div class="rowactions"><button class="btn-sm ok" data-enc="'+esc(p.key)+'">✓ Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div></div>';
   }).join("")+'</div>';
 }
 
