@@ -693,7 +693,7 @@ function aprovar(req){
   var quem = req.tagPastor ? ('Pastor: '+req.tagPastor) : (req.dept ? ('Depto: '+req.dept) : '');
   var titulo = req.title + (req.dept ? ' — '+req.dept : (req.tagPastor ? ' — '+req.tagPastor : ''));
   var local = (req.spaces||[]).join(', ');
-  var desc = [quem, req.solicitante?('Solicitante: '+req.solicitante):'', local?('Espaço: '+local):'', 'Origem: '+(req.origem||''), 'Aprovado via Central de Reservas'].filter(String).join('\n');
+  var desc = local ? ('Espaço: ' + local) : '';
   var opts = { location: local, description: desc };
   // convidados: solicitante + responsáveis de patrimônio/AV envolvidos
   var guests = [];
