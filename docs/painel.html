@@ -850,7 +850,7 @@ function adminHtml(){
     '</div>';
   h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
   h+='<div class="adminsec"><h3>Cores no Google Agenda (por espaço)</h3><p class="ahint">Cada espaço vira uma cor no evento criado na agenda (aprovações e séries).</p>';
-  cfgEspacos().forEach(function(sp){ h+='<div class="pxrow"><div style="flex:1;align-self:center">'+esc(sp)+'</div><select data-cor="'+esc(sp)+'">'+coresOpts((A.cores||{})[sp]||"")+'</select></div>'; });
+  cfgEspacos().forEach(function(sp){ h+='<div class="pxrow" style="align-items:center"><div style="flex:1">'+esc(sp)+'</div>'+coresSwatches(sp,(A.cores||{})[sp]||"")+'</div>'; });
   h+='</div>';
   h+='<div class="adminsec"><h3>Espaços não reconhecidos na agenda</h3><p class="ahint">Eventos cujo espaço o sistema não identificou — <b>não entram na checagem de conflito</b>. Escolha o espaço certo e clique em aplicar (vira regra do dicionário).</p><div id="unrecBox" style="font-size:13px;color:var(--ink-faint)">Carregando…</div><button class="btn-sm" id="unrecApply" style="margin-top:10px">Aplicar mapeamentos</button></div>';
   h+='<div class="adminsec"><h3>Departamentos</h3>'+chipList("departamentos",A.departamentos)+'</div>';
@@ -863,9 +863,16 @@ function adminHtml(){
   h+='<div style="display:flex;gap:10px;align-items:center;margin-top:6px"><button class="btn-primary" id="admSave">Salvar alterações</button><button class="btn-sm" id="admReload">Descartar</button></div>';
   return h;
 }
-function coresOpts(cur){
-  var C=[["","(padrão)"],["1","Lavanda"],["2","Sálvia"],["3","Uva"],["4","Flamingo"],["5","Banana"],["6","Tangerina"],["7","Pavão"],["8","Grafite"],["9","Mirtilo"],["10","Manjericão"],["11","Tomate"]];
-  return C.map(function(c){return '<option value="'+c[0]+'"'+(String(cur||"")===c[0]?" selected":"")+'>'+c[1]+'</option>';}).join("");
+var CORES_GG=[["","Padrão","transparent"],["1","Lavanda","#7986CB"],["2","Sálvia","#33B679"],["3","Uva","#8E24AA"],["4","Flamingo","#E67C73"],["5","Banana","#F6BF26"],["6","Tangerina","#F4511E"],["7","Pavão","#039BE5"],["8","Grafite","#616161"],["9","Mirtilo","#3F51B5"],["10","Manjericão","#0B8043"],["11","Tomate","#D50000"]];
+function coresSwatches(space,cur){
+  var sw=CORES_GG.map(function(c){
+    var on=String(cur||"")===c[0];
+    var base="display:inline-block;width:22px;height:22px;border-radius:50%;cursor:pointer;vertical-align:middle;margin:2px;box-sizing:border-box;";
+    var bg=c[0]===""?"background:var(--surface);border:1px dashed var(--line-strong);":"background:"+c[2]+";border:1px solid rgba(0,0,0,.18);";
+    var ring=on?"outline:2px solid var(--ink);outline-offset:2px;":"";
+    return '<span class="sw" data-id="'+c[0]+'" title="'+esc(c[1])+'" style="'+base+bg+ring+'"></span>';
+  }).join("");
+  return '<span class="corpick" style="display:flex;flex-wrap:wrap;align-items:center;max-width:300px"><input type="hidden" data-cor="'+esc(space)+'" value="'+esc(cur||"")+'">'+sw+'</span>';
 }
 function collectAdmin(scope){
   scope.querySelectorAll("[data-src]").forEach(function(inp){ADMIN.fontes[inp.getAttribute("data-src")]=inp.value.trim();});
@@ -896,6 +903,7 @@ function wireAdmin(scope){
   var ub=scope.querySelector("#unrecBox");
   if(ub){google.script.run.withSuccessHandler(function(list){renderUnrec(ub,list);}).withFailureHandler(function(){ub.textContent="Não foi possível ler a agenda.";}).getEspacosNaoReconhecidos();}
   var ua=scope.querySelector("#unrecApply");if(ua)ua.onclick=function(){applyUnrec(scope);};
+  scope.querySelectorAll(".corpick").forEach(function(pick){var inp=pick.querySelector("input[data-cor]");pick.querySelectorAll(".sw").forEach(function(sw){sw.onclick=function(){inp.value=sw.getAttribute("data-id");pick.querySelectorAll(".sw").forEach(function(s){s.style.outline="";s.style.outlineOffset="";});sw.style.outline="2px solid var(--ink)";sw.style.outlineOffset="2px";};});});
   scope.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-del")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
   scope.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-add");var inp=scope.querySelector('[data-addinp="'+key+'"]');var v=inp.value.trim();if(v&&ADMIN[key].indexOf(v)<0){ADMIN[key].push(v);}reRenderAdmin();};});
   scope.querySelectorAll("[data-delrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-delrow")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
