@@ -111,6 +111,11 @@
   .callout{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:12px 15px;font-size:13px;color:var(--ink-soft);margin-bottom:14px}
   .adminsec{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 17px;margin-bottom:13px}
   .adminsec h3{font-family:"Archivo",sans-serif;font-size:15px;margin:0 0 3px}
+  details.adminsec>summary{cursor:pointer;list-style:none;font-family:"Archivo",sans-serif;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+  details.adminsec>summary::-webkit-details-marker{display:none}
+  details.adminsec>summary::before{content:"▸";color:var(--ink-faint);font-size:12px;transition:transform .15s}
+  details.adminsec[open]>summary::before{transform:rotate(90deg)}
+  details.adminsec>summary+*{margin-top:11px}
   .ahint{font-size:12px;color:var(--ink-faint);margin:0 0 11px}
   .adminsec .field{margin-bottom:10px} .adminsec .field label{font-size:12px;font-weight:600;color:var(--ink-soft)}
   .adminsec input{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)}
@@ -335,10 +340,11 @@ function doEditar(k,fields){var r=REQ[k];if(!r)return;BUSY=true;toast("Salvando�
 function drow(lbl,val){ if(val==null||val==="")return""; return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><div style="flex:0 0 130px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em">'+esc(lbl)+'</div><div style="flex:1;font-size:14px;color:var(--ink);white-space:pre-wrap">'+esc(val)+'</div></div>'; }
 function needsHtml(n){
   if(!n)return"";
-  var h="",cats=["Patrimônio","Audiovisual","Secretaria (café/insumos)"];
-  cats.forEach(function(c){ if(n[c]&&n[c].length) h+=drow(c,n[c].join(", ")); });
+  var h="";
+  Object.keys(n).forEach(function(c){ if(c==="obs"||c==="textos"||c==="extras")return; var v=n[c]; if(v&&v.length) h+=drow(c,(v instanceof Array?v.join(", "):v)); });
   if(n.textos){ if(n.textos.patrim)h+=drow("Patrimônio (texto)",n.textos.patrim); if(n.textos.av)h+=drow("Audiovisual (texto)",n.textos.av); }
   if(n.obs)h+=drow("Outras obs.",n.obs);
+  if(n.extras&&n.extras.length)n.extras.forEach(function(x){h+=drow(x.label||"Campo",x.valor||"");});
   return h;
 }
 function statusLabel(s){ if(s==="aprovado")return"✓ Aprovado"; if(s==="recusado")return"✕ Recusado"; if(s==="encaminhado")return"✓ Encaminhado"; if(s==="excluido")return"Removido"; return"Aguardando"; }
@@ -858,6 +864,17 @@ function chipList(key,arr){
   return '<div class="chiplist">'+arr.map(function(v,i){return '<span class="chip-ed">'+esc(v)+'<button data-del="'+key+'" data-i="'+i+'">×</button></span>';}).join("")+'</div>'+
     '<div class="addline"><input type="text" data-addinp="'+key+'" placeholder="adicionar…"><button class="btn-sm" data-add="'+key+'">+ Adicionar</button></div>';
 }
+function campoRow(c,i,taSt){
+  var selSt='font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)';
+  var tipos=[["texto","Texto curto"],["textolongo","Texto longo"],["numero","Número"],["selecao","Seleção (lista)"],["sim_nao","Sim / Não"]];
+  var topt=tipos.map(function(t){return '<option value="'+t[0]+'"'+(((c.tipo||"texto")===t[0])?" selected":"")+'>'+t[1]+'</option>';}).join("");
+  return '<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">'+
+    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input data-cprow="'+i+'" data-cf="label" value="'+esc(c.label||"")+'" placeholder="Pergunta (ex.: Nº de participantes)" style="flex:1"><button class="btn-sm" data-delcampo="'+i+'">×</button></div>'+
+    '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><select data-cprow="'+i+'" data-cf="tipo" style="'+selSt+'">'+topt+'</select>'+
+    '<label style="display:flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--ink-soft)"><input type="checkbox" data-cprow="'+i+'" data-cf="obrigatorio"'+(c.obrigatorio?" checked":"")+' style="width:auto">Obrigatório</label></div>'+
+    '<div class="field" style="margin-top:8px"><label>Opções (só para "Seleção", uma por linha)</label><textarea data-cprow="'+i+'" data-cf="opcoes" rows="2" style="'+taSt+'">'+esc((c.opcoes||[]).join("\n"))+'</textarea></div>'+
+    '</div>';
+}
 function pgGrp(chave,g,taSt){
   var nomes={patrim:"Grupo 1 → Patrimônio",av:"Grupo 2 → Audiovisual",sec:"Grupo 3 → Secretaria"};
   return '<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">'+
@@ -871,11 +888,11 @@ function adminHtml(){
   if(!ADMIN) return '<div class="empty">Carregando configurações…</div>';
   var A=ADMIN;
   var h='<div class="callout">Conectado como <b>'+esc(ME.email||"—")+'</b>'+(ME.admin?' · <b style="color:var(--ok)">Administrador</b>':' · sem permissão')+'. Só a secretaria altera estas configurações e dispara e-mails.</div>';
-  h+='<div class="adminsec"><h3>Fontes de dados (links/IDs)</h3><p class="ahint">De onde o painel lê. Cole o link ou o ID.</p>'+
+  h+='<details class="adminsec"><summary>Fontes de dados (links/IDs)</summary><p class="ahint">De onde o painel lê. Cole o link ou o ID.</p>'+
     srcF("form1_reserva","Planilha — Reserva de espaço (Form 1)",A.fontes.form1_reserva)+
     srcF("form2_pastoral","Planilha — Atendimento pastoral (Form 2)",A.fontes.form2_pastoral)+
     srcF("form3_reserva","Planilha — Reserva pastoral (Form 3)",A.fontes.form3_reserva)+
-    srcF("agenda","Google Agenda (ID/e-mail)",A.fontes.agenda)+'</div>';
+    srcF("agenda","Google Agenda (ID/e-mail)",A.fontes.agenda)+'</details>';
   h+='<div class="adminsec"><h3>Acesso ao painel (login)</h3><p class="ahint">Qualquer pessoa com este <b>e-mail + senha</b> entra no painel. Ao salvar uma nova senha, sua sessão é renovada automaticamente.</p>'+
     '<div class="field"><label>E-mail de acesso</label><input data-cfg="painelUser" value="'+esc(A.painelUser||"")+'" placeholder="email@email.com"></div>'+
     '<div class="field"><label>Senha</label><div style="display:flex;gap:8px;align-items:center"><input id="cfgPass" data-cfg="painelPass" type="password" value="'+esc(A.painelPass||"")+'" style="flex:1"><button type="button" class="btn-sm" id="cfgPassShow">👁 Mostrar</button></div></div>'+
@@ -883,22 +900,26 @@ function adminHtml(){
     '</div>';
   var P=A.pagina||{titulo:"",lead:"",rodape:"",insumos:{}},PI=P.insumos||{};
   var taSt='width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical';
-  h+='<div class="adminsec"><h3>Página de reserva (pública)</h3><p class="ahint">Personalize textos e listas de insumos do formulário público — sem mexer no código. Os 3 grupos vão sempre para Patrimônio / Audiovisual / Secretaria (roteamento dos e-mails).</p>'+
+  h+='<details class="adminsec"><summary>Página de reserva (pública)</summary><p class="ahint">Personalize textos e listas de insumos do formulário público — sem mexer no código. Os 3 grupos vão sempre para Patrimônio / Audiovisual / Secretaria (roteamento dos e-mails).</p>'+
     '<div class="field"><label>Título (chapéu acima de "Solicitar reserva")</label><input data-pg="titulo" value="'+esc(P.titulo||"")+'"></div>'+
     '<div class="field"><label>Texto de instrução (aceita &lt;b&gt;negrito&lt;/b&gt;)</label><textarea data-pg="lead" rows="3" style="'+taSt+'">'+esc(P.lead||"")+'</textarea></div>'+
     '<div class="field"><label>Rodapé</label><input data-pg="rodape" value="'+esc(P.rodape||"")+'" placeholder="FHOP Church · o preenchimento não garante a reserva…"></div>'+
     '<div class="nh" style="margin-top:8px">Grupos de insumos (rótulo + itens, um por linha)</div>'+
     pgGrp("patrim",PI.patrim||{},taSt)+pgGrp("av",PI.av||{},taSt)+pgGrp("sec",PI.sec||{},taSt)+
-    '</div>';
+    '<div class="nh" style="margin-top:12px">Campos personalizados (perguntas extras)</div>'+
+    '<p class="ahint">Perguntas que aparecem no formulário público (ex.: "Nº de participantes"). Ficam guardadas na solicitação, aparecem nos detalhes e no e-mail da secretaria.</p>'+
+    (P.campos||[]).map(function(c,i){return campoRow(c,i,taSt);}).join("")+
+    '<button class="btn-sm" data-addcampo="1">+ Campo</button>'+
+    '</details>';
   h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
-  h+='<div class="adminsec"><h3>Cores no Google Agenda (por espaço)</h3><p class="ahint">Cada espaço vira uma cor no evento criado na agenda (aprovações e séries).</p>';
+  h+='<details class="adminsec"><summary>Cores no Google Agenda (por espaço)</summary><p class="ahint">Cada espaço vira uma cor no evento criado na agenda (aprovações e séries).</p>';
   cfgEspacos().forEach(function(sp){ h+='<div class="pxrow" style="align-items:center"><div style="flex:1">'+esc(sp)+'</div>'+coresSwatches(sp,(A.cores||{})[sp]||"")+'</div>'; });
-  h+='</div>';
-  h+='<div class="adminsec"><h3>Espaços não reconhecidos na agenda</h3><p class="ahint">Eventos cujo espaço o sistema não identificou — <b>não entram na checagem de conflito</b>. Escolha o espaço certo e clique em aplicar (vira regra do dicionário).</p><div id="unrecBox" style="font-size:13px;color:var(--ink-faint)">Carregando…</div><button class="btn-sm" id="unrecApply" style="margin-top:10px">Aplicar mapeamentos</button></div>';
+  h+='</details>';
+  h+='<details class="adminsec"><summary>Espaços não reconhecidos na agenda</summary><p class="ahint">Eventos cujo espaço o sistema não identificou — <b>não entram na checagem de conflito</b>. Escolha o espaço certo e clique em aplicar (vira regra do dicionário).</p><div id="unrecBox" style="font-size:13px;color:var(--ink-faint)">Carregando…</div><button class="btn-sm" id="unrecApply" style="margin-top:10px">Aplicar mapeamentos</button></details>';
   h+='<div class="adminsec"><h3>Departamentos</h3>'+chipList("departamentos",A.departamentos)+'</div>';
-  h+='<div class="adminsec"><h3>Pastores (nome + e-mail)</h3><p class="ahint">E-mails usados para avisos pastorais.</p>';
+  h+='<details class="adminsec"><summary>Pastores (nome + e-mail)</summary><p class="ahint">E-mails usados para avisos pastorais.</p>';
   A.pastores.forEach(function(p,i){h+='<div class="pxrow"><input data-prow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-prow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="pastores" data-i="'+i+'">×</button></div>';});
-  h+='<button class="btn-sm" data-addrow="pastores">+ Pastor</button></div>';
+  h+='<button class="btn-sm" data-addrow="pastores">+ Pastor</button></details>';
   h+='<div class="adminsec"><h3>Responsáveis (patrimônio / AV / secretaria / departamento)</h3><p class="ahint">Ao confirmar, cada área recebe no seu e-mail. Papéis reconhecidos: <b>Patrimônio</b>, <b>Audiovisual</b>, <b>Secretaria</b>, <b>Departamento</b>.</p>';
   A.responsaveis.forEach(function(p,i){h+='<div class="pxrow"><input data-rrow="'+i+'" data-f="papel" value="'+esc(p.papel||"")+'" placeholder="Papel"><input data-rrow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-rrow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="responsaveis" data-i="'+i+'">×</button></div>';});
   h+='<button class="btn-sm" data-addrow="responsaveis">+ Responsável</button></div>';
@@ -925,11 +946,13 @@ function collectAdmin(scope){
   var rmap={};scope.querySelectorAll("[data-rrow]").forEach(function(inp){var i=inp.getAttribute("data-rrow");(rmap[i]=rmap[i]||{})[inp.getAttribute("data-f")]=inp.value.trim();});
   if(Object.keys(rmap).length)ADMIN.responsaveis=Object.keys(rmap).map(function(i){return rmap[i];}).filter(function(p){return p.papel||p.nome;});
   // Página de reserva (textos + insumos)
-  if(scope.querySelector("[data-pg],[data-pgi]")){
+  if(scope.querySelector("[data-pg],[data-pgi],[data-cprow]")){
     var pg=ADMIN.pagina||{}; pg.insumos=pg.insumos||{};
     scope.querySelectorAll("[data-pg]").forEach(function(inp){pg[inp.getAttribute("data-pg")]=inp.value;});
     var gmap={};scope.querySelectorAll("[data-pgi]").forEach(function(inp){var k=inp.getAttribute("data-pgi"),f=inp.getAttribute("data-pgf");gmap[k]=gmap[k]||{};if(f==="itens")gmap[k].itens=inp.value.split("\n").map(function(x){return x.trim();}).filter(Boolean);else gmap[k][f]=inp.value.trim();});
     ["patrim","av","sec"].forEach(function(k){if(gmap[k])pg.insumos[k]=Object.assign(pg.insumos[k]||{},gmap[k]);});
+    var cmap={};scope.querySelectorAll("[data-cprow]").forEach(function(inp){var i=inp.getAttribute("data-cprow"),f=inp.getAttribute("data-cf");cmap[i]=cmap[i]||{};if(f==="obrigatorio")cmap[i].obrigatorio=inp.checked;else if(f==="opcoes")cmap[i].opcoes=inp.value.split("\n").map(function(x){return x.trim();}).filter(Boolean);else cmap[i][f]=inp.value.trim();});
+    if(scope.querySelector("[data-cprow],[data-addcampo]"))pg.campos=Object.keys(cmap).map(function(i){return cmap[i];}).filter(function(c){return c.label;});
     ADMIN.pagina=pg;
   }
 }
@@ -958,6 +981,8 @@ function wireAdmin(scope){
   scope.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-add");var inp=scope.querySelector('[data-addinp="'+key+'"]');var v=inp.value.trim();if(v&&ADMIN[key].indexOf(v)<0){ADMIN[key].push(v);}reRenderAdmin();};});
   scope.querySelectorAll("[data-delrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-delrow")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
   scope.querySelectorAll("[data-addrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-addrow");ADMIN[key].push(key==="pastores"?{nome:"",email:""}:{papel:"",nome:"",email:""});reRenderAdmin();};});
+  scope.querySelectorAll("[data-delcampo]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN.pagina=ADMIN.pagina||{};ADMIN.pagina.campos=ADMIN.pagina.campos||[];ADMIN.pagina.campos.splice(+b.getAttribute("data-delcampo"),1);reRenderAdmin();};});
+  var addC=scope.querySelector("[data-addcampo]");if(addC)addC.onclick=function(){collectAdmin(scope);ADMIN.pagina=ADMIN.pagina||{};ADMIN.pagina.campos=ADMIN.pagina.campos||[];ADMIN.pagina.campos.push({label:"",tipo:"texto",obrigatorio:false,opcoes:[]});reRenderAdmin();};
   var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(res){BUSY=false;if(res&&res.token)AUTH=res.token;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN,AUTH);};
   var rl=document.getElementById("admReload");if(rl)rl.onclick=function(){ADMIN=CFG?JSON.parse(JSON.stringify(CFG)):null;reRenderAdmin();toast("Alterações descartadas");};
   var ps=document.getElementById("cfgPassShow");if(ps)ps.onclick=function(){var i=document.getElementById("cfgPass");if(!i)return;if(i.type==="password"){i.type="text";ps.textContent="🙈 Ocultar";}else{i.type="password";ps.textContent="👁 Mostrar";}};

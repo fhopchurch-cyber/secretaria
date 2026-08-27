@@ -59,7 +59,8 @@ function normPagina_(p){
     titulo: p.titulo!=null ? p.titulo : PAGINA_DEF.titulo,
     lead:   p.lead!=null   ? p.lead   : PAGINA_DEF.lead,
     rodape: p.rodape!=null ? p.rodape : PAGINA_DEF.rodape,
-    insumos: { patrim:g('patrim'), av:g('av'), sec:g('sec') }
+    insumos: { patrim:g('patrim'), av:g('av'), sec:g('sec') },
+    campos: (p.campos instanceof Array) ? p.campos : []
   };
 }
 
@@ -624,6 +625,8 @@ function notificarResponsaveis_(req){
   if(!req.needs) return;
   var obs = req.needs.obs || '';
   var textos = req.needs.textos || {};
+  var extras = (req.needs.extras instanceof Array) ? req.needs.extras : [];
+  var extrasTxt = extras.length ? ('\nInformações adicionais:\n' + extras.map(function(x){ return '- ' + (x.label||'') + ': ' + (x.valor||''); }).join('\n') + '\n') : '';
   var contato = (req.solicitante ? ('Solicitante: '+req.solicitante+'\n') : '') + (req.email ? ('Contato: '+req.email+'\n') : '');
   // Agrupa por área: cada uma recebe SÓ o que é dela (itens marcados + campo de texto próprio).
   var areas = {
@@ -642,13 +645,15 @@ function notificarResponsaveis_(req){
   });
   ['patrim','audio','secret'].forEach(function(a){
     var A = areas[a];
-    if(!A.itens.length && !A.txt) return;      // nada para essa área → não envia
+    var ex = (a==='secret') ? extrasTxt : '';
+    if(!A.itens.length && !A.txt && !ex) return;      // nada para essa área → não envia
     var to = respEmail_(a); if(!to) return;
     var nome = respNome_(a);
     var corpo = 'Olá' + (nome ? (' ' + nome) : '') + ',\n\nUma reserva foi confirmada e precisa de você.\n\n' +
       'Evento: ' + req.title + '\nQuando: ' + quando + '\nLocal: ' + local + '\n' + contato +
       (A.itens.length ? ('\nItens marcados:\n- ' + A.itens.join('\n- ') + '\n') : '') +
       (A.txt ? ('\n' + (a==='secret' ? 'Outras observações' : 'Pedido (' + A.rotulo + ')') + ':\n' + A.txt + '\n') : '') +
+      ex +
       '\n— Central de Reservas FHOP';
     sendMail_(to, A.rotulo + ' · ' + req.title, corpo);
   });

@@ -111,6 +111,8 @@ var google={script:{}};
       </div>
       <div class="field"><label>Espaço(s) desejado(s)</label><div class="spacegrid" id="rSpaceGrid"></div></div>
 
+      <div id="customFields"></div>
+
       <div class="banner" id="banner"></div>
 
       <details open id="needsBox"><summary>Precisa de algo? (cadeiras, café, som…)</summary>
@@ -184,12 +186,35 @@ function renderNeeds(ins){
   id("nhSec").textContent=ins.sec.rotulo;
 }
 renderNeeds({patrim:{rotulo:"Patrimônio",itens:NEEDS["Patrimônio"]},av:{rotulo:"Audiovisual",itens:NEEDS["Audiovisual"]},sec:{rotulo:"Secretaria (café/insumos)",itens:NEEDS["Secretaria (café/insumos)"]}});
+var cxSt='width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)';
+function renderCampos(campos){
+  var box=id("customFields");box.innerHTML="";
+  (campos||[]).forEach(function(c,i){
+    var fid="cx"+i,lab=esc(c.label||("Campo "+(i+1)))+(c.obrigatorio?' <span style="color:#c0392b">*</span>':''),ctrl;
+    if(c.tipo==="textolongo")ctrl='<textarea id="'+fid+'" rows="2" style="'+cxSt+';resize:vertical"></textarea>';
+    else if(c.tipo==="numero")ctrl='<input id="'+fid+'" type="number" style="'+cxSt+'">';
+    else if(c.tipo==="selecao"){var ops='<option value="">—</option>'+(c.opcoes||[]).map(function(o){return '<option>'+esc(o)+'</option>';}).join("");ctrl='<select id="'+fid+'" style="'+cxSt+'">'+ops+'</select>';}
+    else if(c.tipo==="sim_nao")ctrl='<select id="'+fid+'" style="'+cxSt+'"><option value="">—</option><option>Sim</option><option>Não</option></select>';
+    else ctrl='<input id="'+fid+'" type="text" style="'+cxSt+'">';
+    box.insertAdjacentHTML("beforeend",'<div class="field" data-cx="'+i+'" data-req="'+(c.obrigatorio?1:0)+'" data-label="'+esc(c.label||"")+'" style="margin-bottom:12px"><label for="'+fid+'">'+lab+'</label>'+ctrl+'</div>');
+  });
+}
+function collectExtras(){
+  var out=[],ok=true;
+  id("customFields").querySelectorAll("[data-cx]").forEach(function(f){
+    var el=f.querySelector("input,textarea,select"),val=el?el.value.trim():"";
+    if(f.getAttribute("data-req")==="1"&&!val){if(ok&&el)el.focus();ok=false;}
+    if(val)out.push({label:f.getAttribute("data-label"),valor:val});
+  });
+  return ok?out:null;
+}
 function applyPagina(p){
   var pg=p.pagina||{};
   if(pg.titulo!=null)id("pgEyebrow").textContent=pg.titulo;
   if(pg.lead!=null)id("pgLead").innerHTML=pg.lead;
   if(pg.rodape)id("pgFoot").textContent=pg.rodape;
   if(pg.insumos)renderNeeds(pg.insumos);
+  renderCampos(pg.campos||[]);
   if(p.espacos&&p.espacos.length){CANON=p.espacos.slice();rSpaceGrid.innerHTML="";CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});}
   if(p.departamentos&&p.departamentos.length){rDept.innerHTML="";p.departamentos.forEach(function(d){rDept.add(new Option(d,d));});}
 }
@@ -258,8 +283,11 @@ id("form").addEventListener("submit",function(e){
   if(!name||!title||!date){alert("Preencha nome, evento e data.");return;}
   if(!sp.length){alert("Escolha ao menos um espaço.");return;}
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
+  var extras=collectExtras();
+  if(extras===null){alert("Preencha os campos obrigatórios (marcados com *).");return;}
   var needs={obs:id("rObs").value.trim(),textos:{patrim:id("rPatrim").value.trim(),av:id("rAV").value.trim()}};
   id("needsBox").querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
+  if(extras.length)needs.extras=extras;
   var conf=id("banner").classList.contains("bad");
   var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
   id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
