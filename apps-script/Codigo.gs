@@ -109,6 +109,16 @@ function norm(raw){
 function definirEspacoEvento(eventId, space){
   return editarEvento(eventId, { space: space });
 }
+/** Excluir um evento (ou série) direto na agenda do Google. */
+function excluirEvento(eventId){
+  if(!eventId) throw new Error('Evento inválido.');
+  var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+  var d = null; try{ var e0 = cal.getEventById(eventId); if(e0) d = e0.getStartTime(); }catch(_){}
+  apagarEvento_(cal, eventId);
+  invalidarCache_();
+  try{ if(d) CacheService.getScriptCache().remove('ag-'+d.getFullYear()+'-'+d.getMonth()); }catch(e){}
+  return { ok:true };
+}
 /** Edita um evento da agenda: espaço, horário e (opcional) e-mail de confirmação. */
 function editarEvento(eventId, campos){
   if(!eventId) throw new Error('Evento inválido.');
@@ -156,7 +166,7 @@ function _apiMap_(){
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
     adicionarOcorrencia:adicionarOcorrencia, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
-    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento
+    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento
   };
 }
 function apiCall_(fn, args, token){
@@ -506,6 +516,23 @@ function corEvento_(space){
   if(!space) return '';
   var m = cfg().cores || {}; return m[space] ? String(m[space]) : '';
 }
+// Força o e-mail de convite (mesmo p/ mesmo domínio) via API avançada do Agenda; retorna true se conseguiu.
+function forcarConvites_(calId, iCalUID, emails){
+  emails = (emails||[]).filter(function(e){ return e && /@/.test(e); });
+  if(!emails.length) return true;
+  try{
+    if(typeof Calendar === 'undefined' || !Calendar.Events) return false; // serviço avançado não habilitado
+    var found = Calendar.Events.list(calId, { iCalUID: iCalUID, maxResults: 1 });
+    if(!found.items || !found.items.length) return false;
+    var apiId = found.items[0].id;
+    var ev = Calendar.Events.get(calId, apiId);
+    var att = ev.attendees || [];
+    emails.forEach(function(e){ if(!att.some(function(a){ return String(a.email||'').toLowerCase() === e.toLowerCase(); })) att.push({ email: e }); });
+    Calendar.Events.patch({ attendees: att }, calId, apiId, { sendUpdates: 'all' });
+    return true;
+  }catch(err){ return false; }
+}
+
 // E-mails de Patrimônio/Audiovisual que devem entrar como CONVIDADOS quando há insumos daquela área.
 function emailsResponsaveisEnvolvidos_(req){
   var out = []; if(!req.needs) return out;
@@ -709,11 +736,14 @@ function aprovar(req){
     ev = cal.createEvent(titulo, start, end, opts);
   }
   var cor = corEvento_((req.spaces||[])[0]); if(cor){ try{ ev.setColor(cor); }catch(e){} } // cor por espaço
-  // convidados via addGuest (força o convite da agenda, inclusive p/ mesmo domínio): solicitante + patrimônio/AV
+  // convidados: quem solicitou + patrimônio/AV (quando houver). Força o e-mail de convite.
   var guests = [];
   if(req.email && /@/.test(req.email)) guests.push(req.email);
   emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
-  guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} });
+  if(guests.length){
+    var enviou = forcarConvites_(cfg().fontes.agenda, ev.getId(), guests);   // API avançada (e-mail garantido)
+    if(!enviou){ guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} }); } // fallback
+  }
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
   // avisa o solicitante que foi confirmado

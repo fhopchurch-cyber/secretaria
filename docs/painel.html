@@ -7,7 +7,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento"];
+  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -397,6 +397,7 @@ function wireActions(scope){
   scope.querySelectorAll("[data-enc2]").forEach(function(b){b.onclick=function(){openEnc(b.getAttribute("data-enc2"));};});
   scope.querySelectorAll("[data-editpas]").forEach(function(b){b.onclick=function(){openPatEdit(b.getAttribute("data-editpas"));};});
   scope.querySelectorAll("[data-evtedit]").forEach(function(b){b.onclick=function(){openEvtEdit(b.getAttribute("data-evtedit"),b.getAttribute("data-evttitle"),b.getAttribute("data-evtcur"),b.getAttribute("data-evtdate"),b.getAttribute("data-evts"),b.getAttribute("data-evte"));};});
+  scope.querySelectorAll("[data-evtdel]").forEach(function(b){b.onclick=function(){var id=b.getAttribute("data-evtdel"),t=b.getAttribute("data-evttitle")||"";if(!confirm('Excluir "'+t+'" da agenda? Isso apaga o evento no Google Agenda.'))return;toast("Excluindo…");google.script.run.withSuccessHandler(function(){toast("🗑 Evento excluído da agenda");loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).excluirEvento(id);};});
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
@@ -692,7 +693,8 @@ function dayDetailHtml(dk){
     var badge=e.t==="conf"?'<span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>':(e.t==="hit"?'<span class="chip crit">⚠ conflito</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">pedido</span>');
     var spaceChip=e.space?'<span class="chip space">'+esc(e.space)+'</span>':(e.t==="conf"?'<span class="chip crit">sem local</span>':'');
     var editBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm" data-evtedit="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" data-evtcur="'+esc(e.space||"")+'" data-evtdate="'+esc(dk)+'" data-evts="'+esc(e.s||"")+'" data-evte="'+esc(e.e||"")+'" style="margin-left:8px">✎ Editar</button>':'';
-    h+='<div class="row plain"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+badge+spaceChip+'</span></div><span class="rwhen mono">'+esc(e.s)+'–'+esc(e.e)+'</span>'+editBtn+'</div>';
+    var delBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm crit" data-evtdel="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" style="margin-left:4px">🗑</button>':'';
+    h+='<div class="row plain"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+badge+spaceChip+'</span></div><span class="rwhen mono">'+esc(e.s)+'–'+esc(e.e)+'</span>'+editBtn+delBtn+'</div>';
   });
   return h+'</div></div>';
 }
@@ -778,7 +780,8 @@ function reservasHtml(){
   return bar+summ+'<div class="rows">'+list.map(function(c){
     var sp=c.space?'<span class="chip space">'+esc(c.space)+'</span>':'<span class="chip crit">sem local</span>';
     var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(c.space||"")+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'">✎ Editar</button>':'';
-    return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(c.title)+'</span><span class="rmeta"><span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>'+sp+'</span></div><span class="rwhen mono">'+fmtD(c.date)+'<br>'+esc(c.s)+'–'+esc(c.e)+'</span>'+editBtn+'</div>';
+    var delBtn=c.id?'<button class="btn-sm crit" data-evtdel="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" style="margin-left:4px">🗑</button>':'';
+    return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(c.title)+'</span><span class="rmeta"><span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>'+sp+'</span></div><span class="rwhen mono">'+fmtD(c.date)+'<br>'+esc(c.s)+'–'+esc(c.e)+'</span>'+editBtn+delBtn+'</div>';
   }).join("")+'</div>';
 }
 function pedidosHtml(){
