@@ -489,7 +489,7 @@ function checkAddConflict(){
   ensureMonth(new Date(date+"T12:00:00")); // garante que o mês do lançamento esteja carregado
   var cand={date:date,s:s,e:e},hits=[];
   (DATA.calendar||[]).forEach(function(c){if(c.space&&sp.indexOf(c.space)>-1&&overlap(cand,c))hits.push(esc(c.space)+" — "+esc(c.title)+" ("+c.s+"–"+c.e+")");});
-  (DATA.requests||[]).forEach(function(r){if(r.status!=="pendente"&&r.status!=="aprovado")return;var sh=(r.spaces||[]).filter(function(x){return sp.indexOf(x)>-1;});if(sh.length&&overlap(cand,r))hits.push(esc(sh[0])+" — "+esc(r.title)+" ("+r.s+"–"+r.e+")");});
+  (DATA.requests||[]).forEach(function(r){if(r.status!=="pendente")return;var sh=(r.spaces||[]).filter(function(x){return sp.indexOf(x)>-1;});if(sh.length&&overlap(cand,r))hits.push(esc(sh[0])+" — "+esc(r.title)+" ("+r.s+"–"+r.e+")");});
   if(!hits.length){bn.style.display="block";bn.style.background="var(--ok-bg)";bn.style.color="var(--ok)";bn.style.border="1px solid var(--ok-line)";bn.innerHTML="✓ Espaço(s) livre(s) nesse horário.";}
   else{bn.style.display="block";bn.style.background="var(--crit-bg,#fdecec)";bn.style.color="var(--crit)";bn.style.border="1px solid var(--crit)";bn.innerHTML="⚠ Conflito nesse horário:<br>"+hits.join("<br>")+"<br><br>Você ainda pode salvar, mas confira antes.";}
 }
