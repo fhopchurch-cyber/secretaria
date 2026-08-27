@@ -478,6 +478,11 @@ function respEmail_(sub){
   for(var i=0;i<rs.length;i++){ if(String(rs[i].papel||'').toLowerCase().indexOf(sub) > -1) return rs[i].email||''; }
   return '';
 }
+function respNome_(sub){
+  var rs = cfg().responsaveis || [];
+  for(var i=0;i<rs.length;i++){ if(String(rs[i].papel||'').toLowerCase().indexOf(sub) > -1) return rs[i].nome||''; }
+  return '';
+}
 // Data ISO (yyyy-MM-dd) → DD/MM/AAAA para os e-mails.
 function fmtBR_(iso){
   var s = String(iso||''); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -555,7 +560,8 @@ function notificarResponsaveis_(req){
     var A = areas[a];
     if(!A.itens.length && !A.txt) return;      // nada para essa área → não envia
     var to = respEmail_(a); if(!to) return;
-    var corpo = 'Uma reserva foi confirmada e precisa de você.\n\n' +
+    var nome = respNome_(a);
+    var corpo = 'Olá' + (nome ? (' ' + nome) : '') + ',\n\nUma reserva foi confirmada e precisa de você.\n\n' +
       'Evento: ' + req.title + '\nQuando: ' + quando + '\nLocal: ' + local + '\n' + contato +
       (A.itens.length ? ('\nItens marcados:\n- ' + A.itens.join('\n- ') + '\n') : '') +
       (A.txt ? ('\n' + (a==='secret' ? 'Outras observações' : 'Pedido (' + A.rotulo + ')') + ':\n' + A.txt + '\n') : '') +
@@ -695,11 +701,6 @@ function aprovar(req){
   var local = (req.spaces||[]).join(', ');
   var desc = local ? ('Espaço: ' + local) : '';
   var opts = { location: local, description: desc };
-  // convidados: solicitante + responsáveis de patrimônio/AV envolvidos
-  var guests = [];
-  if(req.email && /@/.test(req.email)) guests.push(req.email);
-  emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
-  if(guests.length){ opts.guests = guests.join(','); opts.sendInvites = true; }
   var ev;
   if(req.recorrencia && +req.recorrencia.vezes > 1){
     var rec = CalendarApp.newRecurrence().addWeeklyRule().times(+req.recorrencia.vezes); // toda semana, X vezes
@@ -708,6 +709,11 @@ function aprovar(req){
     ev = cal.createEvent(titulo, start, end, opts);
   }
   var cor = corEvento_((req.spaces||[])[0]); if(cor){ try{ ev.setColor(cor); }catch(e){} } // cor por espaço
+  // convidados via addGuest (força o convite da agenda, inclusive p/ mesmo domínio): solicitante + patrimônio/AV
+  var guests = [];
+  if(req.email && /@/.test(req.email)) guests.push(req.email);
+  emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
+  guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} });
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
   // avisa o solicitante que foi confirmado
