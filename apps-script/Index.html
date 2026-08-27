@@ -127,6 +127,11 @@
   .refresh .rdot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
   .refresh.loading .rdot{background:var(--warn);animation:pulse 1s infinite}
   @keyframes pulse{50%{opacity:.3}}
+  .needs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
+  .needs label{display:flex;gap:7px;align-items:center;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer;color:var(--ink)}
+  .needs input{width:auto;accent-color:var(--accent)}
+  .nh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:10px 0 4px}
+  @media(max-width:460px){.needs{grid-template-columns:1fr}}
   /* ===== Mobile ===== */
   @media(max-width:640px){
     body{padding:0}
@@ -197,11 +202,24 @@
     <div class="field" id="aSpacesWrap"><label>Espaço(s)</label><div class="spacegrid" id="aSpaceGrid"></div></div>
     <div class="field" id="aRepeatWrap"><label>Repetir</label>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="aRepeat" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><option value="nao">Não repete</option><option value="semanal">Semanalmente</option></select>
-        <span id="aRepeatWeeksWrap" style="display:none;align-items:center;gap:6px;font-size:13px">por <input id="aRepeatWeeks" type="number" min="2" max="52" value="4" style="width:66px;font:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"> semanas</span>
+        <select id="aRepeat" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><option value="nao">Não repete</option><option value="diaria">Diariamente</option><option value="semanal">Semanalmente</option><option value="quinzenal">A cada 2 semanas</option><option value="mensal">Mensalmente</option><option value="datas">Datas específicas</option></select>
+        <span id="aRepeatWeeksWrap" style="display:none;align-items:center;gap:6px;font-size:13px">por <input id="aRepeatWeeks" type="number" min="2" max="60" value="4" style="width:66px;font:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"> vezes</span>
+      </div>
+      <div id="aDatasWrap" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="aDataAdd" type="date" style="font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><button type="button" id="aDataAddBtn" class="btn-sm">+ Adicionar data</button></div>
+        <div id="aDatasList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
       </div>
       <p class="ahint" id="aRepeatHint" style="display:none;margin:5px 0 0;font-size:12px;color:var(--ink-faint)">A série é criada direto na agenda (já aprovada).</p>
     </div>
+    <details id="aNeedsWrap" style="margin:0 0 12px;border:1px solid var(--line);border-radius:10px;padding:0 12px">
+      <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:10px 0">Precisa de algo? (patrimônio, secretaria, AV…)</summary>
+      <div class="nh" style="margin-top:2px">Patrimônio</div><div class="needs" id="aGridP"></div>
+      <div class="field" style="margin:6px 0 4px"><label for="aTxtP">Patrimônio — descreva</label><textarea id="aTxtP" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+      <div class="nh">Audiovisual</div><div class="needs" id="aGridAV"></div>
+      <div class="field" style="margin:6px 0 4px"><label for="aTxtAV">Audiovisual — descreva</label><textarea id="aTxtAV" rows="2" placeholder="Ex.: 2 microfones, som, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+      <div class="nh">Secretaria (café/insumos)</div><div class="needs" id="aGridSec"></div>
+      <div class="field" style="margin:6px 0 10px"><label for="aObs">Outras observações (só p/ secretaria)</label><input id="aObs" type="text" placeholder="Ex.: café para 30 pessoas" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></div>
+    </details>
     <div id="addBanner" style="display:none;margin:0 0 12px;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.4"></div>
     <label id="aAprovarWrap" style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="aAprovar" style="width:auto"> Já aprovar e mandar para a agenda</label>
     <div class="dlg-actions"><button type="button" class="btn-ghost" id="aCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar</button></div>
@@ -425,6 +443,8 @@ function openAdd(){
   document.getElementById("aTitle").value="";document.getElementById("aDate").value=keyOf(cur);document.getElementById("aStart").value="19:00";document.getElementById("aEnd").value="21:00";document.getElementById("aAprovar").checked=false;
   document.getElementById("aMotivo").value="";
   document.getElementById("aRepeat").value="nao";document.getElementById("aRepeatWeeks").value="4";document.getElementById("aRepeatWeeksWrap").style.display="none";document.getElementById("aRepeatHint").style.display="none";
+  document.getElementById("aDatasWrap").style.display="none";document.getElementById("aDataAdd").value="";addDatas=[];renderDatasChips();
+  fillAddNeeds();
   addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");dep.hidden=false;pas.hidden=true;applyAddType();
   var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
 }
@@ -441,14 +461,23 @@ function applyAddType(){
   document.getElementById("aSpacesWrap").hidden=false; // e espaço, p/ checar ocupação
   document.getElementById("aAprovarWrap").style.display=isAt?"none":"flex";
   document.getElementById("aRepeatWrap").style.display=isAt?"none":"block"; // recorrência só p/ reserva
+  document.getElementById("aNeedsWrap").style.display=isAt?"none":"block"; // insumos só p/ reserva
   document.getElementById("aTitleLbl").textContent=isAt?"Nome do membro":"Título / evento";
   document.getElementById("aTitle").placeholder=isAt?"Nome de quem será atendido":"Ex.: Reunião de equipe";
   checkAddConflict();
 }
+var ADDNEEDS={"Patrimônio":["Cadeiras","Mesas","Outros objetos"],"Audiovisual":["Sistema de som","Microfone(s)","Iluminação especial"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]};
+function buildNeedsGrid(gridId,cat){var g=document.getElementById(gridId);g.innerHTML=ADDNEEDS[cat].map(function(it){return '<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>';}).join("");}
+function fillAddNeeds(){buildNeedsGrid("aGridP","Patrimônio");buildNeedsGrid("aGridAV","Audiovisual");buildNeedsGrid("aGridSec","Secretaria (café/insumos)");document.getElementById("aTxtP").value="";document.getElementById("aTxtAV").value="";document.getElementById("aObs").value="";document.getElementById("aNeedsWrap").open=false;}
+function addNeeds(){var needs={obs:document.getElementById("aObs").value.trim(),textos:{patrim:document.getElementById("aTxtP").value.trim(),av:document.getElementById("aTxtAV").value.trim()}};document.getElementById("aNeedsWrap").querySelectorAll("input[type=checkbox]:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});return needs;}
+var addDatas=[];
+function renderDatasChips(){var box=document.getElementById("aDatasList");box.innerHTML=addDatas.slice().sort().map(function(d,i){return '<span class="chip" style="display:inline-flex;gap:6px;align-items:center">'+fmtD(d)+'<button type="button" data-rmdata="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rmdata]").forEach(function(b){b.onclick=function(){var s=addDatas.slice().sort();s.splice(+b.getAttribute("data-rmdata"),1);addDatas=s;renderDatasChips();};});}
+document.getElementById("aDataAddBtn").onclick=function(){var v=document.getElementById("aDataAdd").value;if(!v){toast("Escolha uma data",true);return;}if(addDatas.indexOf(v)<0)addDatas.push(v);renderDatasChips();};
 document.getElementById("aRepeat").onchange=function(){
-  var on=this.value==="semanal";
-  document.getElementById("aRepeatWeeksWrap").style.display=on?"inline-flex":"none";
-  document.getElementById("aRepeatHint").style.display=on?"block":"none";
+  var v=this.value, rule=(v!=="nao"&&v!=="datas"), datas=(v==="datas");
+  document.getElementById("aRepeatWeeksWrap").style.display=rule?"inline-flex":"none";
+  document.getElementById("aDatasWrap").style.display=datas?"block":"none";
+  var h=document.getElementById("aRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"Cria um evento por data, direto na agenda.":"A série é criada direto na agenda (já aprovada).";
 };
 // checa conflito de espaço+horário para a ocorrência sendo lançada (igual à página de reserva)
 function addChosen(){var sp=[];document.querySelectorAll("#aSpaceGrid input:checked").forEach(function(c){sp.push(c.value);});return sp;}
@@ -487,7 +516,15 @@ document.getElementById("addForm").addEventListener("submit",function(e){
   var data={title:title,tipo:addType,dept:addTag==="dept"?document.getElementById("aDept").value:"",tagPastor:addTag==="pastor"?document.getElementById("aPastor").value:"",solicitante:"Secretaria",date:date,s:s,e:en,spaces:sp};
   var apr=document.getElementById("aAprovar").checked;
   var rep=document.getElementById("aRepeat").value, weeks=parseInt(document.getElementById("aRepeatWeeks").value,10)||0;
-  if(rep==="semanal"&&weeks>1){ data.recorrencia={tipo:"semanal",vezes:weeks}; apr=true; } // série vai direto p/ agenda
+  data.needs=addNeeds();
+  if(rep==="datas"){
+    if(!addDatas.length){toast("Adicione ao menos uma data",true);return;}
+    var dts=addDatas.slice();
+    BUSY=true;toast("Criando "+dts.length+" evento(s)…");
+    google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ "+dts.length+" evento(s) criado(s) na agenda");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrenciasMultiplas(data,dts,true);
+    return;
+  }
+  if(rep!=="nao"&&weeks>1){ data.recorrencia={tipo:rep,vezes:weeks}; apr=true; } // série vai direto p/ agenda
   BUSY=true;toast("Salvando…");
   google.script.run.withSuccessHandler(function(){BUSY=false;toast(data.recorrencia?("✓ Série criada ("+weeks+"x) na agenda"):(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes"));document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
 });

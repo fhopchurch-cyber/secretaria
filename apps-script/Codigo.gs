@@ -165,7 +165,7 @@ function _apiMap_(){
     getDados:getDados, getConfig:getConfig, saveConfig:saveConfig,
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
-    adicionarOcorrencia:adicionarOcorrencia, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
+    adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento
   };
 }
@@ -466,6 +466,24 @@ function enviarReserva(data){
   return { ok:true, key:key };
 }
 
+/** Cria a MESMA ocorrência em várias datas específicas (cada uma vira um evento). */
+function adicionarOcorrenciasMultiplas(data, datas, aprovarJa){
+  if(!datas || !datas.length) throw new Error('Escolha ao menos uma data.');
+  var n = 0;
+  datas.forEach(function(dt){
+    if(!dt) return;
+    var d2 = Object.assign({}, data); d2.date = dt;
+    var res = enviarReserva(d2);
+    if(aprovarJa){
+      aprovar({ key:res.key, title:d2.title, dept:d2.dept||'', tagPastor:d2.tagPastor||'',
+        solicitante:d2.solicitante||'', email:d2.email||'', date:d2.date, s:d2.s, e:d2.e,
+        spaces:d2.spaces||[], needs:d2.needs, origem:'Secretaria' });
+    }
+    n++;
+  });
+  return { ok:true, n:n };
+}
+
 /** Adicionar ocorrência direto no painel (secretaria). Opcional: já aprovar → agenda. */
 function adicionarOcorrencia(data, aprovarJa){
   var res = enviarReserva(data);
@@ -730,8 +748,12 @@ function aprovar(req){
   var opts = { location: local, description: desc };
   var ev;
   if(req.recorrencia && +req.recorrencia.vezes > 1){
-    var rec = CalendarApp.newRecurrence().addWeeklyRule().times(+req.recorrencia.vezes); // toda semana, X vezes
-    ev = cal.createEventSeries(titulo, start, end, rec, opts);
+    var R = CalendarApp.newRecurrence(), n = +req.recorrencia.vezes, tipo = req.recorrencia.tipo || 'semanal';
+    if(tipo==='diaria') R.addDailyRule().times(n);
+    else if(tipo==='mensal') R.addMonthlyRule().times(n);
+    else if(tipo==='quinzenal') R.addWeeklyRule().interval(2).times(n);
+    else R.addWeeklyRule().times(n);
+    ev = cal.createEventSeries(titulo, start, end, R, opts);
   } else {
     ev = cal.createEvent(titulo, start, end, opts);
   }
