@@ -139,7 +139,7 @@
     </svg>
     <span class="live"><span class="dot"></span> Ao vivo</span>
   </div>
-  <div class="s" style="margin-top:14px">Secretaria <span id="meLabel" style="text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:500"></span></div>
+  <div class="s" style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">Secretaria <span id="meLabel" style="text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:500"></span><a href="<?= BASEURL ?>" target="_top" style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:5px 11px;text-decoration:none">Sair ↪</a></div>
   <h1>Central de Reservas</h1>
   <p class="sub">Lê em tempo real as planilhas e a agenda. Aprovar cria o evento e convida o solicitante.</p>
 
@@ -197,6 +197,16 @@
   </form>
 </dialog>
 
+<dialog id="detDialog">
+  <div class="dlg" style="max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <h2 id="detTitle" style="margin:0">Detalhes</h2>
+      <button type="button" class="btn-ghost" id="detClose" style="padding:6px 12px">Fechar</button>
+    </div>
+    <div id="detBody" style="margin-top:12px"></div>
+  </div>
+</dialog>
+
 <script>
 var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 var MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -237,12 +247,64 @@ function serverAct(fnName, arg, okMsg){
     .withFailureHandler(function(e){ BUSY=false; toast("Erro: "+(e.message||e), true); })
     [fnName](arg);
 }
-function doAprovar(k){var r=REQ[k];if(r)serverAct("aprovar",r,"✓ Aprovado — evento criado na agenda");}
-function doRecusar(k){var r=REQ[k];if(r)serverAct("recusar",r,"✕ Recusado");}
-function doDesfazer(k){var r=REQ[k];if(r)serverAct("desfazer",r,"↩ Desfeito");}
-function doExcluir(k){var it=REQ[k]||PAS[k];if(it)serverAct("excluir",it,"🗑 Removido da lista (planilha intacta)");}
+// ações otimistas: muda a tela na hora e grava por trás (sem reler tudo)
+function _bg(fn,arg){google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();})[fn](arg);}
+function doAprovar(k){var r=REQ[k];if(!r)return;r.status="aprovado";render();toast("✓ Aprovado — criando na agenda…");_bg("aprovar",r);}
+function doRecusar(k){var r=REQ[k];if(!r)return;r.status="recusado";render();toast("✕ Recusado");_bg("recusar",r);}
+function doDesfazer(k){var r=REQ[k];if(!r)return;r.status="pendente";render();toast("↩ Desfeito");_bg("desfazer",r);}
+function doExcluir(k){var it=REQ[k]||PAS[k];if(!it)return;it.status="excluido";render();toast("🗑 Removido");_bg("excluir",it);}
 function doEncaminhar(k,pastor){var p=PAS[k];if(p&&pastor){BUSY=true;toast("Encaminhando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Encaminhado a "+pastor);loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).encaminhar(p,pastor);}}
 function doEditar(k,fields){var r=REQ[k];if(!r)return;BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✎ Alterações salvas");document.getElementById("editDialog").close();loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).editar(r,fields);}
+
+// ===== Detalhes (modal ao clicar na linha) =====
+function drow(lbl,val){ if(val==null||val==="")return""; return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><div style="flex:0 0 130px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em">'+esc(lbl)+'</div><div style="flex:1;font-size:14px;color:var(--ink);white-space:pre-wrap">'+esc(val)+'</div></div>'; }
+function needsHtml(n){
+  if(!n)return"";
+  var h="",cats=["Patrimônio","Audiovisual","Secretaria (café/insumos)"];
+  cats.forEach(function(c){ if(n[c]&&n[c].length) h+=drow(c,n[c].join(", ")); });
+  if(n.textos){ if(n.textos.patrim)h+=drow("Patrimônio (texto)",n.textos.patrim); if(n.textos.av)h+=drow("Audiovisual (texto)",n.textos.av); }
+  if(n.obs)h+=drow("Outras obs.",n.obs);
+  return h;
+}
+function statusLabel(s){ if(s==="aprovado")return"✓ Aprovado"; if(s==="recusado")return"✕ Recusado"; if(s==="encaminhado")return"✓ Encaminhado"; if(s==="excluido")return"Removido"; return"Aguardando"; }
+function openDet(key){
+  var r=REQ[key], p=(!r?PAS[key]:null), h="", titulo="";
+  if(r){
+    titulo=r.title||"Reserva";
+    h+=drow("Tipo", r.tipo==="atendimento"?"Atendimento":"Reserva de espaço");
+    h+=drow("Situação", statusLabel(r.status));
+    h+=drow("Solicitante", r.solicitante);
+    h+=drow("E-mail", r.email);
+    h+=drow(r.tagPastor?"Pastor":"Departamento", r.tagPastor||r.dept);
+    h+=drow("Data", r.date?fmtD(r.date):"");
+    h+=drow("Horário", (r.s||"")+(r.e?" – "+r.e:""));
+    h+=drow("Espaço(s)", (r.spaces||[]).join(", "));
+    h+=drow("Origem", r.origem);
+    h+=needsHtml(r.needs);
+  } else if(p){
+    titulo=p.nome||"Atendimento";
+    h+=drow("Tipo","Atendimento pastoral");
+    h+=drow("Situação", statusLabel(p.status));
+    h+=drow("Membro", p.nome);
+    h+=drow("Telefone", p.telefone);
+    h+=drow("E-mail", p.email);
+    h+=drow("Motivo", p.motivo);
+    h+=drow("Disponibilidade", p.disp);
+    h+=drow("Pastor", p.pastor||p.tagPastor);
+    h+=drow("Data do pedido", p.date?fmtD(p.date):"");
+    h+=drow("Origem", p.origem);
+  } else return;
+  document.getElementById("detTitle").textContent=titulo;
+  document.getElementById("detBody").innerHTML=h||'<p style="color:var(--ink-faint)">Sem informações adicionais.</p>';
+  var d=document.getElementById("detDialog");if(!d)return;if(d.open)return;if(d.showModal)d.showModal();else d.setAttribute("open","");
+}
+document.getElementById("detClose").onclick=function(){document.getElementById("detDialog").close();};
+// listener global: clicar em qualquer linha (que tenha data-det) abre os detalhes
+document.addEventListener("click",function(ev){
+  if(ev.target.closest("button,a,input,select,textarea,label"))return;
+  var el=ev.target.closest("[data-det]");
+  if(el)openDet(el.getAttribute("data-det"));
+});
 
 function wireActions(scope){
   scope.querySelectorAll("[data-aprovar]").forEach(function(b){b.onclick=function(){doAprovar(b.getAttribute("data-aprovar"));};});
@@ -251,7 +313,7 @@ function wireActions(scope){
   scope.querySelectorAll("[data-excluir]").forEach(function(b){b.onclick=function(){doExcluir(b.getAttribute("data-excluir"));};});
   scope.querySelectorAll("[data-editar]").forEach(function(b){b.onclick=function(){openEdit(b.getAttribute("data-editar"));};});
   scope.querySelectorAll("[data-enc2]").forEach(function(b){b.onclick=function(){openEnc(b.getAttribute("data-enc2"));};});
-  scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){serverAct("desfazer",{key:b.getAttribute("data-desfazerpas")},"↩ Reaberto");};});
+  scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
   wireBulk(scope);
@@ -266,7 +328,7 @@ function wireBulk(scope){
   function upd(){var k=keysSel();bn.textContent=k.length+" selecionado(s)";bd.disabled=!k.length;if(sa)sa.checked=(k.length===boxes.length&&boxes.length>0);}
   boxes.forEach(function(b){b.onchange=upd;});
   if(sa)sa.onchange=function(){boxes.forEach(function(b){b.checked=sa.checked;});upd();};
-  bd.onclick=function(){var k=keysSel();if(!k.length||BUSY)return;BUSY=true;toast("Excluindo "+k.length+"…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("🗑 "+k.length+" removido(s) — planilhas intactas");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).excluirLote(k);};
+  bd.onclick=function(){var k=keysSel();if(!k.length)return;k.forEach(function(key){var it=REQ[key]||PAS[key];if(it)it.status="excluido";});render();toast("🗑 "+k.length+" removido(s) — planilhas intactas");google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();}).excluirLote(k);};
   upd();
 }
 
@@ -359,8 +421,9 @@ document.getElementById("encForm").addEventListener("submit",function(e){
   var det={pastor:document.getElementById("encPastor").value,date:document.getElementById("encDate").value,s:document.getElementById("encStart").value,e:document.getElementById("encEnd").value,local:document.getElementById("encLocal").value,email:document.getElementById("encEmail").value.trim()};
   if(!det.pastor){toast("Escolha o pastor",true);return;}
   if(!det.date){toast("Escolha a data",true);return;}
-  BUSY=true;toast("Encaminhando…");
-  google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Encaminhado e agendado");document.getElementById("encDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).encaminharComAgenda(p,det);
+  p.status="encaminhado";p.pastor=det.pastor;render();
+  document.getElementById("encDialog").close();toast("✓ Encaminhado e agendado");
+  google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(err){toast("Erro ao agendar: "+(err.message||err),true);loadData();}).encaminharComAgenda(p,det);
 });
 
 var conflicts=[];
@@ -427,6 +490,9 @@ function renderBody(){
   else if(tab==="admin")b.innerHTML=adminHtml();
   wireActions(b);
   if(tab==="mes"){
+    ensureMonth(cur); // garante que o mês visível da agenda da igreja esteja carregado
+    if(calView==="mes"){ ensureMonth(new Date(cur.getFullYear(),cur.getMonth()-1,1)); ensureMonth(new Date(cur.getFullYear(),cur.getMonth()+1,1)); }
+    if(calView==="semana"){ var wd=new Date(cur); ensureMonth(new Date(wd.getFullYear(),wd.getMonth(),wd.getDate()-7)); ensureMonth(new Date(wd.getFullYear(),wd.getMonth(),wd.getDate()+7)); }
     var gp=document.getElementById("gPrev"),gn=document.getElementById("gNext"),gt=document.getElementById("gToday");
     if(gp)gp.onclick=function(){shiftCur(-1);render();};
     if(gn)gn.onclick=function(){shiftCur(1);render();};
@@ -537,14 +603,14 @@ function pedidosHtml(){
     var tag=r.tagPastor?'<span class="chip">✝ '+esc(r.tagPastor)+'</span>':(r.dept?'<span class="chip">'+esc(r.dept)+'</span>':'');
     var who=r.solicitante?'<span class="chip">por '+esc(r.solicitante)+'</span>':'';
     var cf=reqInConflict(r)?'<span class="chip crit">⚠ conflito</span>':'';
-    return '<div class="row"><input type="checkbox" class="selbox" data-sel="'+esc(r.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
+    return '<div class="row"><input type="checkbox" class="selbox" data-sel="'+esc(r.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(r.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
   }).join("")+'</div>';
 }
 function conflitosHtml(){
   if(!conflicts.length)return '<div class="empty">Nenhum conflito entre pedidos e agenda. 🎉</div>';
   return '<div class="rows">'+conflicts.map(function(c){
     var r=c.req;
-    return '<div class="row" style="border-left:3px solid var(--crit)"><div class="rmain"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta"><span class="chip crit">choca com: '+esc(c.other.title)+'</span><span class="chip">'+(c.tipo==="agenda"?"na agenda":"outro pedido")+'</span><span style="color:var(--crit)">'+esc(c.space)+'</span></span></div><span class="rwhen mono">'+fmtD(r.date)+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
+    return '<div class="row" style="border-left:3px solid var(--crit)"><div class="rmain" data-det="'+esc(r.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta"><span class="chip crit">choca com: '+esc(c.other.title)+'</span><span class="chip">'+(c.tipo==="agenda"?"na agenda":"outro pedido")+'</span><span style="color:var(--crit)">'+esc(c.space)+'</span></span></div><span class="rwhen mono">'+fmtD(r.date)+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
   }).join("")+'</div>';
 }
 function pastoralHtml(){
@@ -564,7 +630,7 @@ function pastoralHtml(){
     var acts=isEnc
       ? '<div class="rowactions"><button class="btn-sm" data-enc2="'+esc(p.key)+'">✎ Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : '<div class="rowactions"><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
-    return '<div class="row'+(isEnc?' aprovado':'')+'"><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
+    return '<div class="row'+(isEnc?' aprovado':'')+'"><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
   }).join("")+'</div>';
 }
 
@@ -585,14 +651,17 @@ function adminHtml(){
     srcF("form2_pastoral","Planilha — Atendimento pastoral (Form 2)",A.fontes.form2_pastoral)+
     srcF("form3_reserva","Planilha — Reserva pastoral (Form 3)",A.fontes.form3_reserva)+
     srcF("agenda","Google Agenda (ID/e-mail)",A.fontes.agenda)+'</div>';
-  h+='<div class="adminsec"><h3>Link do painel (botão "Área da secretaria")</h3><p class="ahint">Cole a URL do painel (implantação do Índice). Vira um botão na página pública de reserva para a equipe entrar.</p><div class="field"><input data-cfg="linkPainel" value="'+esc(A.linkPainel||"")+'" placeholder="https://script.google.com/.../exec"></div></div>';
-  h+='<div class="adminsec"><h3>Acesso ao painel (e-mails)</h3><p class="ahint">Só estes e-mails abrem o painel; os demais veem a página de reserva.</p>'+chipList("allowlist",A.allowlist)+'</div>';
+  h+='<div class="adminsec"><h3>Acesso ao painel (login)</h3><p class="ahint">Qualquer pessoa com este <b>e-mail + senha</b> entra no painel. Ao salvar uma nova senha, sua sessão é renovada automaticamente.</p>'+
+    '<div class="field"><label>E-mail de acesso</label><input data-cfg="painelUser" value="'+esc(A.painelUser||"")+'" placeholder="email@email.com"></div>'+
+    '<div class="field"><label>Senha</label><div style="display:flex;gap:8px;align-items:center"><input id="cfgPass" data-cfg="painelPass" type="password" value="'+esc(A.painelPass||"")+'" style="flex:1"><button type="button" class="btn-sm" id="cfgPassShow">👁 Mostrar</button></div></div>'+
+    '<div class="field"><label>E-mail de recuperação (recebe o lembrete no "esqueci a senha")</label><input data-cfg="recoveryEmail" value="'+esc(A.recoveryEmail||"")+'" placeholder="fhopchurch@fhop.com"></div>'+
+    '</div>';
   h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
   h+='<div class="adminsec"><h3>Departamentos</h3>'+chipList("departamentos",A.departamentos)+'</div>';
   h+='<div class="adminsec"><h3>Pastores (nome + e-mail)</h3><p class="ahint">E-mails usados para avisos pastorais.</p>';
   A.pastores.forEach(function(p,i){h+='<div class="pxrow"><input data-prow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-prow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="pastores" data-i="'+i+'">×</button></div>';});
   h+='<button class="btn-sm" data-addrow="pastores">+ Pastor</button></div>';
-  h+='<div class="adminsec"><h3>Responsáveis (patrimônio / AV / secretaria)</h3><p class="ahint">Ex.: Wanderson (Patrimônio), Bruna (Audiovisual).</p>';
+  h+='<div class="adminsec"><h3>Responsáveis (patrimônio / AV / secretaria / departamento)</h3><p class="ahint">Ao confirmar, cada área recebe no seu e-mail. Papéis reconhecidos: <b>Patrimônio</b>, <b>Audiovisual</b>, <b>Secretaria</b>, <b>Departamento</b>.</p>';
   A.responsaveis.forEach(function(p,i){h+='<div class="pxrow"><input data-rrow="'+i+'" data-f="papel" value="'+esc(p.papel||"")+'" placeholder="Papel"><input data-rrow="'+i+'" data-f="nome" value="'+esc(p.nome||"")+'" placeholder="Nome"><input data-rrow="'+i+'" data-f="email" value="'+esc(p.email||"")+'" placeholder="e-mail"><button class="btn-sm" data-delrow="responsaveis" data-i="'+i+'">×</button></div>';});
   h+='<button class="btn-sm" data-addrow="responsaveis">+ Responsável</button></div>';
   h+='<div style="display:flex;gap:10px;align-items:center;margin-top:6px"><button class="btn-primary" id="admSave">Salvar alterações</button><button class="btn-sm" id="admReload">Descartar</button></div>';
@@ -612,15 +681,25 @@ function wireAdmin(scope){
   scope.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-add");var inp=scope.querySelector('[data-addinp="'+key+'"]');var v=inp.value.trim();if(v&&ADMIN[key].indexOf(v)<0){ADMIN[key].push(v);}reRenderAdmin();};});
   scope.querySelectorAll("[data-delrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);ADMIN[b.getAttribute("data-delrow")].splice(+b.getAttribute("data-i"),1);reRenderAdmin();};});
   scope.querySelectorAll("[data-addrow]").forEach(function(b){b.onclick=function(){collectAdmin(scope);var key=b.getAttribute("data-addrow");ADMIN[key].push(key==="pastores"?{nome:"",email:""}:{papel:"",nome:"",email:""});reRenderAdmin();};});
-  var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN,AUTH);};
+  var sv=document.getElementById("admSave");if(sv)sv.onclick=function(){collectAdmin(scope);BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(res){BUSY=false;if(res&&res.token)AUTH=res.token;toast("✓ Configurações salvas");CFG=JSON.parse(JSON.stringify(ADMIN));loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN,AUTH);};
   var rl=document.getElementById("admReload");if(rl)rl.onclick=function(){ADMIN=CFG?JSON.parse(JSON.stringify(CFG)):null;reRenderAdmin();toast("Alterações descartadas");};
+  var ps=document.getElementById("cfgPassShow");if(ps)ps.onclick=function(){var i=document.getElementById("cfgPass");if(!i)return;if(i.type==="password"){i.type="text";ps.textContent="🙈 Ocultar";}else{i.type="password";ps.textContent="👁 Mostrar";}};
 }
+
+// ===== Agenda sob demanda (meses fora da janela inicial de 3 meses) =====
+var extraMonths={}; // "ANO-MES": [eventos]
+function _mk(d){return d.getFullYear()+"-"+d.getMonth();}
+function isBaseMonth(mk){var t=new Date();for(var o=-1;o<=1;o++){var d=new Date(t.getFullYear(),t.getMonth()+o,1);if(mk===_mk(d))return true;}return false;}
+function mergeExtra(){ if(!DATA||!DATA.calendar)return; var seen={}; DATA.calendar.forEach(function(c){seen[c.date+'|'+c.s+'|'+c.title]=1;});
+  Object.keys(extraMonths).forEach(function(mk){(extraMonths[mk]||[]).forEach(function(c){var k=c.date+'|'+c.s+'|'+c.title;if(!seen[k]){seen[k]=1;DATA.calendar.push(c);}});}); }
+function ensureMonth(d){ var mk=_mk(d); if(isBaseMonth(mk)||extraMonths[mk])return; extraMonths[mk]=[]; // reserva (evita busca dupla)
+  google.script.run.withSuccessHandler(function(evs){extraMonths[mk]=evs||[];mergeExtra();render();}).withFailureHandler(function(){delete extraMonths[mk];}).getAgendaMes(d.getFullYear(),d.getMonth()); }
 
 // carrega os dados do servidor (com atualização automática)
 function loadData(){
   var bar=document.querySelector(".refresh"); if(bar) bar.classList.add("loading");
   google.script.run
-    .withSuccessHandler(function(d){ DATA=d; LAST=new Date(); render(); })
+    .withSuccessHandler(function(d){ DATA=d; LAST=new Date(); mergeExtra(); render(); })
     .withFailureHandler(function(err){
       if(!DATA) document.getElementById("app").innerHTML='<div class="errbox">Erro ao ler os dados: '+esc(err.message||err)+'</div>';
       var b=document.querySelector(".refresh"); if(b) b.classList.remove("loading");

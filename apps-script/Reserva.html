@@ -90,10 +90,18 @@
 
       <div class="banner" id="banner"></div>
 
-      <details open><summary>Precisa de algo? (cadeiras, café, som…)</summary>
-        <div class="needs" id="needsGrid"></div>
-        <div class="field" style="margin:12px 0 4px"><label for="rPatrim">🪑 Patrimônio (Wanderson)</label><textarea id="rPatrim" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas, 1 púlpito…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
-        <div class="field" style="margin:10px 0 4px"><label for="rAV">🎧 Audiovisual (Bruna)</label><textarea id="rAV" rows="2" placeholder="Ex.: 2 microfones, projetor, som ambiente, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+      <details open id="needsBox"><summary>Precisa de algo? (cadeiras, café, som…)</summary>
+        <div class="nh" style="margin-top:6px">Patrimônio</div>
+        <div class="needs" id="gridPatrim"></div>
+        <div class="field" style="margin:8px 0 4px"><label for="rPatrim">Patrimônio — descreva</label><textarea id="rPatrim" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas, 1 púlpito…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+
+        <div class="nh" style="margin-top:12px">Audiovisual</div>
+        <div class="needs" id="gridAV"></div>
+        <div class="field" style="margin:8px 0 4px"><label for="rAV">Audiovisual — descreva</label><textarea id="rAV" rows="2" placeholder="Ex.: 2 microfones, som ambiente, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+
+        <div class="nh" style="margin-top:12px">Secretaria (café/insumos)</div>
+        <div class="needs" id="gridSec"></div>
+
         <div class="field" style="margin:10px 0 12px"><label for="rObs">Outras observações</label><input id="rObs" type="text" placeholder="Ex.: café para 30 pessoas"></div>
       </details>
 
@@ -103,15 +111,20 @@
   </div>
 
   <dialog id="loginDialog" style="border:0;border-radius:16px;padding:0;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-    <form id="loginForm" method="dialog" style="padding:22px 22px 18px">
+    <form id="loginForm" method="get" action="" target="_top" style="padding:22px 22px 18px">
+      <input type="hidden" name="p" value="painel">
       <h2 style="margin:0 0 4px;font-size:20px">Entrar</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--ink-faint)">Acesso da secretaria à Central de Reservas.</p>
-      <div class="field" style="margin-bottom:12px"><label for="lgEmail">E-mail</label><input id="lgEmail" type="email" autocomplete="username" placeholder="email@email.com" required></div>
-      <div class="field" style="margin-bottom:14px"><label for="lgPass">Senha</label><input id="lgPass" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+      <div class="field" style="margin-bottom:12px"><label for="lgEmail">E-mail</label><input id="lgEmail" name="user" type="email" autocomplete="username" placeholder="email@email.com" required></div>
+      <div class="field" style="margin-bottom:14px"><label for="lgPass">Senha</label><input id="lgPass" name="pw" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
       <p id="lgErr" style="display:none;margin:0 0 12px;font-size:13px;color:#c0392b;font-weight:600"></p>
-      <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button type="button" id="lgCancel" class="btn-ghost">Cancelar</button>
-        <button type="submit" class="btn-primary" id="lgSubmit" style="width:auto;padding:11px 20px">Entrar</button>
+      <p id="lgMsg" style="display:none;margin:0 0 12px;font-size:13px;color:#1e8449;font-weight:600"></p>
+      <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
+        <button type="button" id="lgForgot" style="background:none;border:0;padding:0;font:inherit;font-size:13px;font-weight:600;color:var(--accent-ink);text-decoration:underline;cursor:pointer">Esqueci a senha</button>
+        <div style="display:flex;gap:10px">
+          <button type="button" id="lgCancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn-primary" id="lgSubmit" style="width:auto;padding:11px 20px">Entrar</button>
+        </div>
       </div>
     </form>
   </dialog>
@@ -128,17 +141,20 @@
 var CANON=["Auditório","Nave do Templo","Sala 1","Sala 2","Área Gourmet","Sala Verde/Estúdio","Sala de reunião/atendimento","Briefing","Estacionamento"];
 var DEPARTS=["RESET","XTRA","ROCKTES","KIDS","ENCONTRO DELAS","HOMENS","PROFÉTICO","FHOP SOCIAL","USHERS","SALA DE ORAÇÃO","LOUVOR","ADMINISTRATIVO","FINANCEIRO","HOSPITALIDADE","FHOP BOOKS","FHOP STORE","FHOP MUSIC","FHOP SCHOOL","FASCINAÇÃO","ESCOLAS","CENTRO TREINAMENTO","TECNOLOGIAS","COMUNICAÇÃO E MARKETING","PASTORAL","EVENTOS E CONFERÊNCIAS"];
 var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
-var NEEDS={"Patrimônio (Wanderson)":["Cadeiras","Mesas","Outros objetos"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira"],"Audiovisual (Bruna)":["Sistema de som","Microfone(s)","Projetor","Telão/Quadro","Iluminação especial"]};
+var NEEDS={"Patrimônio":["Cadeiras","Mesas","Outros objetos"],"Audiovisual":["Sistema de som","Microfone(s)","Iluminação especial"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]};
 
 var OCUP=null;
 function id(x){return document.getElementById(x);}
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 
-var rDept=id("rDept"),rSpaceGrid=id("rSpaceGrid"),needsGrid=id("needsGrid");
+var rDept=id("rDept"),rSpaceGrid=id("rSpaceGrid");
 DEPARTS.forEach(function(d){rDept.add(new Option(d,d));});
 CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
-Object.keys(NEEDS).forEach(function(cat){needsGrid.insertAdjacentHTML("beforeend",'<div class="nh">'+esc(cat)+'</div>');NEEDS[cat].forEach(function(it){needsGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});});
+function fillNeeds(gridId,cat){var g=id(gridId);NEEDS[cat].forEach(function(it){g.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});}
+fillNeeds("gridPatrim","Patrimônio");
+fillNeeds("gridAV","Audiovisual");
+fillNeeds("gridSec","Secretaria (café/insumos)");
 
 function chosen(){var a=[];rSpaceGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);});return a;}
 
@@ -163,20 +179,25 @@ rSpaceGrid.addEventListener("change",checkConflict);
 // busca a ocupação confirmada (só espaço+horário, sem nomes)
 google.script.run.withSuccessHandler(function(o){OCUP=o||[];checkConflict();}).withFailureHandler(function(){OCUP=[];}).getOcupacao();
 // ===== Login da secretaria (mesmo link) =====
+// O login é um GET de topo (target=_top) — funciona no Safari, que bloqueia redirect por callback.
 var lgDlg=id("loginDialog");
 function lgErr(m){var e=id("lgErr");e.textContent=m;e.style.display=m?"block":"none";}
-id("loginBtn").onclick=function(){lgErr("");id("lgPass").value="";if(lgDlg.showModal)lgDlg.showModal();setTimeout(function(){id("lgEmail").focus();},50);};
+function lgMsg(m){var e=id("lgMsg");e.textContent=m;e.style.display=m?"block":"none";}
+// Descobre a URL /exec para enviar o formulário ao topo.
+google.script.run.withSuccessHandler(function(u){ if(u) id("loginForm").setAttribute("action",u); }).withFailureHandler(function(){}).getSelfUrl();
+id("loginBtn").onclick=function(){lgErr("");lgMsg("");id("lgPass").value="";if(lgDlg.showModal)lgDlg.showModal();setTimeout(function(){id("lgEmail").focus();},50);};
 id("lgCancel").onclick=function(){lgDlg.close();};
-id("loginForm").addEventListener("submit",function(e){
-  e.preventDefault();lgErr("");
-  var em=id("lgEmail").value.trim(),pw=id("lgPass").value;
-  if(!em||!pw){lgErr("Informe e-mail e senha.");return;}
-  var btn=id("lgSubmit");btn.disabled=true;btn.textContent="Entrando…";
+id("lgForgot").onclick=function(){lgErr("");lgMsg("");var b=id("lgForgot");b.disabled=true;b.textContent="Enviando…";
   google.script.run
-    .withSuccessHandler(function(r){ if(r&&r.url){ try{ window.top.location.href=r.url; }catch(_){ window.location.href=r.url; } } else { btn.disabled=false;btn.textContent="Entrar";lgErr("Não foi possível abrir o painel."); } })
-    .withFailureHandler(function(err){ btn.disabled=false;btn.textContent="Entrar";lgErr((err&&err.message)?err.message:"E-mail ou senha inválidos."); })
-    .login(em,pw);
+    .withSuccessHandler(function(r){b.disabled=false;b.textContent="Esqueci a senha";lgMsg("Enviamos os dados de acesso para "+((r&&r.hint)||"o e-mail da secretaria")+".");})
+    .withFailureHandler(function(err){b.disabled=false;b.textContent="Esqueci a senha";lgErr((err&&err.message)?err.message:"Não foi possível enviar.");})
+    .recuperarSenha();};
+id("loginForm").addEventListener("submit",function(e){
+  if(!id("loginForm").getAttribute("action")){ e.preventDefault(); lgErr("Carregando… tente em 1 segundo."); return; }
+  var btn=id("lgSubmit");btn.disabled=true;btn.textContent="Entrando…"; // deixa o GET de topo seguir
 });
+// Se o login falhou (voltou com erro do servidor), reabre o diálogo já avisando.
+if("<?= LOGINERR ?>"==="1"){ lgDlg.showModal&&lgDlg.showModal(); lgErr("E-mail ou senha inválidos."); }
 
 id("form").addEventListener("submit",function(e){
   e.preventDefault();
@@ -186,7 +207,7 @@ id("form").addEventListener("submit",function(e){
   if(!sp.length){alert("Escolha ao menos um espaço.");return;}
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
   var needs={obs:id("rObs").value.trim(),textos:{patrim:id("rPatrim").value.trim(),av:id("rAV").value.trim()}};
-  needsGrid.querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
+  id("needsBox").querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
   var conf=id("banner").classList.contains("bad");
   var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
   id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";

@@ -35,7 +35,7 @@ var ALIASES = {
 var ESPACOS_DEF = ['Auditório','Nave do Templo','Sala 1','Sala 2','Área Gourmet','Sala Verde/Estúdio','Sala de reunião/atendimento','Briefing','Estacionamento'];
 var DEPARTS_DEF = ['RESET','XTRA','ROCKTES','KIDS','ENCONTRO DELAS','HOMENS','PROFÉTICO','FHOP SOCIAL','USHERS','SALA DE ORAÇÃO','LOUVOR','ADMINISTRATIVO','FINANCEIRO','HOSPITALIDADE','FHOP BOOKS','FHOP STORE','FHOP MUSIC','FHOP SCHOOL','FASCINAÇÃO','ESCOLAS','CENTRO TREINAMENTO','TECNOLOGIAS','COMUNICAÇÃO E MARKETING','PASTORAL','EVENTOS E CONFERÊNCIAS'];
 var PASTORES_DEF = ['Shalon','Camila','Cleber','Letícia','Vinicius','Emilaine','William','Nathalie','Hamilton','Brenon','Fernanda'].map(function(n){ return {nome:n, email:''}; });
-var RESP_DEF = [{papel:'Patrimônio', nome:'Wanderson', email:'wanderson@fhop.com'},{papel:'Audiovisual', nome:'Bruna', email:'brunafbatista@fhop.com'},{papel:'Secretaria', nome:'', email:''}];
+var RESP_DEF = [{papel:'Patrimônio', nome:'Wanderson', email:'wanderson@fhop.com'},{papel:'Audiovisual', nome:'Bruna', email:'brunafbatista@fhop.com'},{papel:'Secretaria', nome:'', email:''},{papel:'Departamento', nome:'', email:''}];
 
 // Config ao vivo (defaults + o que o Admin salvou na Central). Cache por execução.
 var _CFG = null;
@@ -56,26 +56,39 @@ function cfg(){
     aliases: Object.assign({}, ALIASES, stored.aliases||{}),
     linkPainel: stored.linkPainel || '',
     painelUser: stored.painelUser || 'fhopchurch@fhop.com',
-    painelPass: stored.painelPass || 'fhopchurch1234'
+    painelPass: stored.painelPass || 'fhopchurch1234',
+    recoveryEmail: stored.recoveryEmail || 'fhopchurch@fhop.com'
   };
   return _CFG;
 }
 function getConfig(){ return cfg(); }
 function getLinkPainel(){ return cfg().linkPainel || ''; } // exposto à página pública (só a URL)
 function getMe(token){
-  var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
-  var admin = (cfg().allowlist.indexOf(email) > -1) || validPainelToken_(token);
-  return { email: email || (validPainelToken_(token) ? cfg().painelUser : ''), admin: admin };
+  var ok = validPainelToken_(token);
+  return { email: ok ? cfg().painelUser : '', admin: ok };
 }
 function saveConfig(novo, token){
-  var email=''; try{ email = Session.getActiveUser().getEmail()||''; }catch(_){}
-  var ok = (cfg().allowlist.indexOf(email) > -1) || validPainelToken_(token);
-  if(!ok) throw new Error('Apenas a secretaria pode alterar as configurações.');
+  if(!validPainelToken_(token)) throw new Error('Sessão expirada. Entre novamente.');
   var ss = getCentralSS_();
   var sh = ss.getSheetByName('config') || ss.insertSheet('config');
   sh.getRange('A1').setValue(JSON.stringify(novo));
   _CFG = null;
-  return { ok:true };
+  return { ok:true, token: _painelToken_() }; // devolve token novo (a senha pode ter mudado)
+}
+/** Esqueci a senha: envia os dados de acesso ao e-mail da secretaria (nunca ao solicitante). */
+function recuperarSenha(){
+  var to = cfg().recoveryEmail || cfg().painelUser;
+  if(!to || !/@/.test(to)) throw new Error('Não há e-mail de recuperação configurado.');
+  sendMail_(to, 'Central de Reservas — acesso da secretaria',
+    'Você (ou alguém) pediu o lembrete de acesso ao painel.\n\n' +
+    'E-mail: ' + cfg().painelUser + '\nSenha: ' + cfg().painelPass + '\n\n' +
+    'Se não foi você, ignore este e-mail.\n\n— Central de Reservas FHOP');
+  return { ok:true, hint: _maskEmail_(to) };
+}
+function _maskEmail_(e){
+  e = String(e||''); var at = e.indexOf('@'); if(at < 1) return '***';
+  var u = e.slice(0,at), d = e.slice(at);
+  return (u.length<=2 ? u[0]+'*' : u.slice(0,2)+'***') + d;
 }
 
 function norm(raw){
@@ -89,27 +102,36 @@ function norm(raw){
 
 /** Um único link: a página de reserva serve todo mundo; com login (senha) abre o painel. */
 function doGet(e){
-  var p = (e && e.parameter && e.parameter.p) || '';
-  var k = (e && e.parameter && e.parameter.k) || '';
-  var email = ''; try { email = Session.getActiveUser().getEmail() || ''; } catch(_){}
-  var porGoogle = cfg().allowlist.indexOf(email) > -1;      // conta fhopchurch logada = acesso direto
-  var porSenha  = (p === 'painel') && validPainelToken_(k); // login por senha na própria página
-  var autorizado = porGoogle || porSenha;
-  var arquivo = (p !== 'reserva' && autorizado) ? 'Index' : 'Reserva';
-  if(arquivo === 'Index'){
+  var pr = (e && e.parameter) || {};
+  var p = pr.p || '';
+  var autorizado = false, loginFalhou = false;
+  if(p === 'painel'){
+    if(validPainelToken_(pr.k)) autorizado = true;                 // já tem token (refresh)
+    else if(pr.pw != null){                                        // login por formulário (GET no topo)
+      var okUser = String(pr.user||'').trim().toLowerCase() === String(cfg().painelUser).toLowerCase();
+      var okPass = String(pr.pw) === String(cfg().painelPass);
+      autorizado = okUser && okPass;
+      loginFalhou = !autorizado;
+    }
+  }
+  if(p !== 'reserva' && autorizado){
     var t = HtmlService.createTemplateFromFile('Index');
-    t.AUTH = _painelToken_(); // prova de que passou pelo login (senha) ou pela conta autorizada
+    t.AUTH = _painelToken_();
+    t.BASEURL = getSelfUrl_();
     return t.evaluate()
       .setTitle('Central de Reservas FHOP')
       .addMetaTag('viewport','width=device-width, initial-scale=1');
   }
-  return HtmlService.createHtmlOutputFromFile('Reserva')
+  var r = HtmlService.createTemplateFromFile('Reserva');
+  r.LOGINERR = loginFalhou ? '1' : '';
+  return r.evaluate()
     .setTitle('Reserva de Espaço · FHOP')
     .addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 
 // ---- Login por senha (mesmo link para reserva e painel) ----
 function getSelfUrl_(){ try { return ScriptApp.getService().getUrl(); } catch(e){ return cfg().linkPainel || ''; } }
+function getSelfUrl(){ return getSelfUrl_(); } // exposto ao formulário de login
 function _painelToken_(){
   var seed = 'fhop::' + String(cfg().painelUser).toLowerCase() + '::' + String(cfg().painelPass);
   return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed));
@@ -174,6 +196,14 @@ function readSheet(id){
 
 /** Lê tudo e devolve ao cliente */
 function getDados(){
+  // Cache curto: recarregar/pollar fica instantâneo. Some ao gravar (upsertEstado_/enviarReserva).
+  try{ var hit = CacheService.getScriptCache().get('dados'); if(hit) return JSON.parse(hit); }catch(_){}
+  var out = _computeDados_();
+  try{ CacheService.getScriptCache().put('dados', JSON.stringify(out), 40); }catch(_){}
+  return out;
+}
+function invalidarCache_(){ try{ CacheService.getScriptCache().remove('dados'); }catch(_){} }
+function _computeDados_(){
   var out = { requests: [], pastoral: [], calendar: [], erros: [] };
 
   // ---- Form 1: Reserva de espaço (departamentos) ----
@@ -244,7 +274,7 @@ function getDados(){
   // ---- Form 2: Atendimento pastoral (fila de encaminhamento) ----
   try{
     var v2 = readSheet(cfg().fontes.form2_pastoral), h2 = v2[0];
-    var c2 = { carimbo: col(h2,'carimbo'), nome: col(h2,'nome completo'), motivo: col(h2,'aconselhamento'), dias: col(h2,'dias dispon'), hora: col(h2,'horário dispon'), email: col2(h2,['e-mail','email','endereço de e-mail']) };
+    var c2 = { carimbo: col(h2,'carimbo'), nome: col(h2,'nome completo'), motivo: col(h2,'aconselhamento'), dias: col(h2,'dias dispon'), hora: col(h2,'horário dispon'), email: col2(h2,['e-mail','email','endereço de e-mail']), tel: col2(h2,['telefone','celular','whatsapp','contato','fone']) };
     for(var k=1;k<v2.length;k++){
       var r2 = v2[k]; if(!r2[c2.nome]) continue;
       var dp = c2.carimbo>-1 ? fmtDate(r2[c2.carimbo]) : '';
@@ -254,29 +284,29 @@ function getDados(){
         nome: str(r2[c2.nome]),
         motivo: str(r2[c2.motivo]),
         email: c2.email>-1 ? str(r2[c2.email]) : '',
+        telefone: c2.tel>-1 ? str(r2[c2.tel]) : '',
         disp: [str(r2[c2.dias]), str(r2[c2.hora])].filter(String).join(' — '),
         date: dp
       });
     }
   }catch(err){ out.erros.push('Form 2: '+err); }
 
-  // ---- Agenda (confirmados) ----
+  // ---- Agenda (confirmados) — só mês anterior + atual + próximo (leitura rápida) ----
   try{
     var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
-    var cp = CORTE.split('-');
-    var ini = new Date(+cp[0], +cp[1]-1, +cp[2]);       // a partir da data de corte
-    var fim = new Date(+cp[0]+1, +cp[1]-1, +cp[2]);      // +1 ano
+    var hoje = new Date();
+    var ini = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);       // 1º dia do mês anterior
+    var fim = new Date(hoje.getFullYear(), hoje.getMonth()+2, 1);       // 1º dia do mês seguinte ao próximo
     var evs = cal.getEvents(ini, fim);
     for(var m2=0; m2<evs.length; m2++){
       var ev = evs[m2];
-      var txt = [ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | ');
-      var space = norm(txt);
+      var space = norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
       out.calendar.push({
         title: ev.getTitle(),
         date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
-        space: space, raw: txt
+        space: space
       });
     }
   }catch(err){ out.erros.push('Agenda: '+err); }
@@ -342,6 +372,7 @@ function enviarReserva(data){
   sh.appendRow([key, quando, data.title, data.tipo||'reserva', data.dept||'', data.tagPastor||'',
     data.solicitante||'', data.email||'', data.date, data.s||'', data.e||'',
     (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
+  invalidarCache_();
   return { ok:true, key:key };
 }
 
@@ -367,15 +398,38 @@ function respEmail_(sub){
   for(var i=0;i<rs.length;i++){ if(String(rs[i].papel||'').toLowerCase().indexOf(sub) > -1) return rs[i].email||''; }
   return '';
 }
+// Data ISO (yyyy-MM-dd) → DD/MM/AAAA para os e-mails.
+function fmtBR_(iso){
+  var s = String(iso||''); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[3]+'/'+m[2]+'/'+m[1]) : s;
+}
+function _esc_(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// Monta o HTML deixando o "Título:" de cada linha em negrito.
+function _htmlBody_(body){
+  return String(body||'').split('\n').map(function(line){
+    var m = line.match(/^([^:]{1,40}):\s?(.*)$/);
+    if(m) return '<b>' + _esc_(m[1]) + ':</b> ' + _esc_(m[2]);
+    return _esc_(line);
+  }).join('<br>');
+}
 function sendMail_(to, subject, body){
   if(!to || !/@/.test(to)) return;
-  try{ MailApp.sendEmail(to, subject, body); }catch(e){}
+  try{ MailApp.sendEmail({ to: to, subject: subject, body: body, htmlBody: _htmlBody_(body) }); }catch(e){}
 }
 function notificarResponsaveis_(req){
-  var quando = req.date + ' ' + (req.s||'') + '–' + (req.e||'');
+  var quando = fmtBR_(req.date) + ' ' + (req.s||'') + '–' + (req.e||'');
   var local = (req.spaces||[]).join(', ');
   if(req.tagPastor){ sendMail_(pastorEmail_(req.tagPastor), 'Reserva aprovada: '+req.title,
     'Olá '+req.tagPastor+',\n\nReserva aprovada:\n'+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
+  // Aviso ao departamento responsável (e-mail configurado no Admin > Responsáveis).
+  if(req.dept){
+    var toDep = respEmail_('depart');
+    if(toDep) sendMail_(toDep, 'Reserva confirmada · '+req.dept,
+      'A reserva do departamento '+req.dept+' foi confirmada.\n\n' +
+      'Evento: '+req.title+'\nQuando: '+quando+'\nLocal: '+local+'\n' +
+      (req.solicitante?('Solicitante: '+req.solicitante+'\n'):'') +
+      '\n— Central de Reservas FHOP');
+  }
   if(!req.needs) return;
   var obs = req.needs.obs || '';
   var textos = req.needs.textos || {};
@@ -384,7 +438,7 @@ function notificarResponsaveis_(req){
   var areas = {
     patrim: { rotulo:'Patrimônio', itens:[], txt: textos.patrim || '' },
     audio:  { rotulo:'Audiovisual', itens:[], txt: textos.av || '' },
-    secret: { rotulo:'Secretaria', itens:[], txt: '' }
+    secret: { rotulo:'Secretaria', itens:[], txt: obs || '' }  // "Outras observações" é o texto da Secretaria
   };
   Object.keys(req.needs).forEach(function(cat){
     if(cat === 'obs' || cat === 'textos') return;
@@ -402,8 +456,7 @@ function notificarResponsaveis_(req){
     var corpo = 'Uma reserva foi confirmada e precisa de você.\n\n' +
       'Evento: ' + req.title + '\nQuando: ' + quando + '\nLocal: ' + local + '\n' + contato +
       (A.itens.length ? ('\nItens marcados:\n- ' + A.itens.join('\n- ') + '\n') : '') +
-      (A.txt ? ('\nPedido (' + A.rotulo + '):\n' + A.txt + '\n') : '') +
-      (obs ? ('\nObservações gerais: ' + obs + '\n') : '') +
+      (A.txt ? ('\n' + (a==='secret' ? 'Outras observações' : 'Pedido (' + A.rotulo + ')') + ':\n' + A.txt + '\n') : '') +
       '\n— Central de Reservas FHOP';
     sendMail_(to, A.rotulo + ' · ' + req.title, corpo);
   });
@@ -425,8 +478,35 @@ function encaminharComAgenda(item, det){
   var ev = cal.createEvent(titulo, start, end, opts);
   upsertEstado_(item.key, { status:'encaminhado', pastor:det.pastor, eventId: ev.getId(), titulo:item.nome||'' });
   sendMail_(pe, 'Atendimento pastoral encaminhado',
-    'Você recebeu um atendimento:\nMembro: '+(item.nome||'')+'\nData: '+det.date+' '+(det.s||'')+'–'+(det.e||'')+'\nLocal: '+local+(item.motivo?('\nMotivo: '+item.motivo):'')+'\n\n— Central de Reservas FHOP');
+    'Você recebeu um atendimento:\nMembro: '+(item.nome||'')+
+    (item.telefone?('\nTelefone: '+item.telefone):'')+
+    (det.email?('\nE-mail: '+det.email):'')+
+    '\nData: '+fmtBR_(det.date)+' '+(det.s||'')+'–'+(det.e||'')+'\nLocal: '+local+
+    (item.motivo?('\nMotivo: '+item.motivo):'')+'\n\n— Central de Reservas FHOP');
   return { ok:true };
+}
+
+/** Eventos da agenda de UM mês (ano, mes 0-11) — para carregar sob demanda ao navegar o calendário. */
+function getAgendaMes(ano, mes){
+  ano = +ano; mes = +mes;
+  var ck = 'ag-' + ano + '-' + mes;
+  try{ var hit = CacheService.getScriptCache().get(ck); if(hit) return JSON.parse(hit); }catch(_){}
+  var out = [];
+  try{
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+    var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
+    for(var i=0;i<evs.length;i++){ var ev = evs[i];
+      out.push({
+        title: ev.getTitle(),
+        date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
+        s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
+        e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
+        space: norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '))
+      });
+    }
+  }catch(e){}
+  try{ CacheService.getScriptCache().put(ck, JSON.stringify(out), 120); }catch(_){}
+  return out;
 }
 
 /** Ocupação confirmada (só espaço+horário, sem nomes) para a página pública checar conflito. */
@@ -474,6 +554,7 @@ function upsertEstado_(key, patch){
   var data = [key, row.status, row.pastor, row.eventId, row.override, row.titulo, when, who];
   if(found>0) sh.getRange(found,1,1,8).setValues([data]);
   else sh.appendRow(data);
+  invalidarCache_();
 }
 
 function mkDate_(date, time){
