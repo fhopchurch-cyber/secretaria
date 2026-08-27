@@ -1,2 +1,2 @@
-// >>> COLE AQUI a URL /exec da sua implantação do Apps Script (termina em /exec) <<<
-window.EXEC_URL = "PASTE_YOUR_EXEC_URL_HERE";
+// URL /exec da implantação do Apps Script (backend).
+window.EXEC_URL = "https://script.google.com/macros/s/AKfycbwCQHTtvyOk3uFdnjwRSp29H0JhF9eugOnwgF9ZovxTUdPAuIuW41TDWFsa-qgOHk4zrg/exec";

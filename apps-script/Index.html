@@ -195,6 +195,13 @@
       <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="aStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="aEnd" type="time" value="21:00" style="flex:1"></div></div>
     </div>
     <div class="field" id="aSpacesWrap"><label>Espaço(s)</label><div class="spacegrid" id="aSpaceGrid"></div></div>
+    <div class="field" id="aRepeatWrap"><label>Repetir</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="aRepeat" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><option value="nao">Não repete</option><option value="semanal">Semanalmente</option></select>
+        <span id="aRepeatWeeksWrap" style="display:none;align-items:center;gap:6px;font-size:13px">por <input id="aRepeatWeeks" type="number" min="2" max="52" value="4" style="width:66px;font:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"> semanas</span>
+      </div>
+      <p class="ahint" id="aRepeatHint" style="display:none;margin:5px 0 0;font-size:12px;color:var(--ink-faint)">A série é criada direto na agenda (já aprovada).</p>
+    </div>
     <div id="addBanner" style="display:none;margin:0 0 12px;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.4"></div>
     <label id="aAprovarWrap" style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="aAprovar" style="width:auto"> Já aprovar e mandar para a agenda</label>
     <div class="dlg-actions"><button type="button" class="btn-ghost" id="aCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar</button></div>
@@ -416,6 +423,7 @@ function openAdd(){
   document.getElementById("aSpaceGrid").innerHTML=cfgEspacos().map(function(sp){return '<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>';}).join("");
   document.getElementById("aTitle").value="";document.getElementById("aDate").value=keyOf(cur);document.getElementById("aStart").value="19:00";document.getElementById("aEnd").value="21:00";document.getElementById("aAprovar").checked=false;
   document.getElementById("aMotivo").value="";
+  document.getElementById("aRepeat").value="nao";document.getElementById("aRepeatWeeks").value="4";document.getElementById("aRepeatWeeksWrap").style.display="none";document.getElementById("aRepeatHint").style.display="none";
   addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");dep.hidden=false;pas.hidden=true;applyAddType();
   var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
 }
@@ -431,10 +439,16 @@ function applyAddType(){
   document.getElementById("aWhenWrap").hidden=false;   // atendimento também tem data/horário
   document.getElementById("aSpacesWrap").hidden=false; // e espaço, p/ checar ocupação
   document.getElementById("aAprovarWrap").style.display=isAt?"none":"flex";
+  document.getElementById("aRepeatWrap").style.display=isAt?"none":"block"; // recorrência só p/ reserva
   document.getElementById("aTitleLbl").textContent=isAt?"Nome do membro":"Título / evento";
   document.getElementById("aTitle").placeholder=isAt?"Nome de quem será atendido":"Ex.: Reunião de equipe";
   checkAddConflict();
 }
+document.getElementById("aRepeat").onchange=function(){
+  var on=this.value==="semanal";
+  document.getElementById("aRepeatWeeksWrap").style.display=on?"inline-flex":"none";
+  document.getElementById("aRepeatHint").style.display=on?"block":"none";
+};
 // checa conflito de espaço+horário para a ocorrência sendo lançada (igual à página de reserva)
 function addChosen(){var sp=[];document.querySelectorAll("#aSpaceGrid input:checked").forEach(function(c){sp.push(c.value);});return sp;}
 function checkAddConflict(){
@@ -471,8 +485,10 @@ document.getElementById("addForm").addEventListener("submit",function(e){
   if(toMin(en)<=toMin(s)){toast("Término deve ser depois do início",true);return;}
   var data={title:title,tipo:addType,dept:addTag==="dept"?document.getElementById("aDept").value:"",tagPastor:addTag==="pastor"?document.getElementById("aPastor").value:"",solicitante:"Secretaria",date:date,s:s,e:en,spaces:sp};
   var apr=document.getElementById("aAprovar").checked;
+  var rep=document.getElementById("aRepeat").value, weeks=parseInt(document.getElementById("aRepeatWeeks").value,10)||0;
+  if(rep==="semanal"&&weeks>1){ data.recorrencia={tipo:"semanal",vezes:weeks}; apr=true; } // série vai direto p/ agenda
   BUSY=true;toast("Salvando…");
-  google.script.run.withSuccessHandler(function(){BUSY=false;toast(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
+  google.script.run.withSuccessHandler(function(){BUSY=false;toast(data.recorrencia?("✓ Série criada ("+weeks+"x) na agenda"):(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes"));document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
 });
 
 // ===== Encaminhar atendimento (agenda) =====
@@ -576,13 +592,13 @@ function render(){
     '<div class="refresh"><span class="rdot"></span> Atualizado '+hhmm+' · atualização automática a cada '+(REFRESH_MS/1000)+'s · <button id="refreshBtn">Atualizar agora</button><button id="addOcc" class="btn-primary" style="margin-left:auto;padding:8px 14px">+ Adicionar ocorrência</button></div>'+
     err+
     '<div class="tiles">'+
-      tile("warn",pendM,"pedidos pendentes")+
+      tile("warn",pendM,"solicitações pendentes")+
       tile("crit",conflM,"conflito"+(conflM===1?"":"s"))+
       tile("accent",eventsM,"eventos na agenda")+
       tile("warn",atendM,"atendimentos")+
     '</div>'+
     '<nav>'+
-      tb("mes","Mês")+tb("pedidos","Pedidos",pendT)+tb("conflitos","Conflitos",conflicts.length)+tb("pastoral","Atendimento",pasT)+
+      tb("mes","Mês")+tb("reservas","Reservas")+tb("pedidos","Solicitações",pendT)+tb("conflitos","Conflitos",conflicts.length)+tb("pastoral","Atendimento",pasT)+
       '<button class="tab" data-t="admin" aria-selected="'+(tab==="admin")+'" style="margin-left:auto">⚙ Admin</button>'+
     '</nav>'+
     '<div id="body"></div>'+
@@ -598,11 +614,13 @@ function tb(t,label,cnt){return '<button class="tab" data-t="'+t+'" aria-selecte
 function renderBody(){
   var b=document.getElementById("body");
   if(tab==="mes")b.innerHTML=monthHtml();
+  else if(tab==="reservas")b.innerHTML=reservasHtml();
   else if(tab==="pedidos")b.innerHTML=pedidosHtml();
   else if(tab==="conflitos")b.innerHTML=conflitosHtml();
   else if(tab==="pastoral")b.innerHTML=pastoralHtml();
   else if(tab==="admin")b.innerHTML=adminHtml();
   wireActions(b);
+  if(tab==="reservas"){ wireReservas(b); ensureRangeReservas(); }
   if(tab==="mes"){
     ensureMonth(cur); // garante que o mês visível da agenda da igreja esteja carregado
     if(calView==="mes"){ ensureMonth(new Date(cur.getFullYear(),cur.getMonth()-1,1)); ensureMonth(new Date(cur.getFullYear(),cur.getMonth()+1,1)); }
@@ -622,10 +640,9 @@ function shiftCur(dir){
   else cur.setDate(cur.getDate()+dir);
 }
 
-function evAll(dk){ // TODOS os eventos do dia (agenda + pedidos pendentes)
+function evAll(dk){ // só a agenda confirmada (solicitações pendentes ficam na aba Solicitações)
   var list=[];
   DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:c.space||"",id:c.id||""});});
-  DATA.requests.forEach(function(r){if(r.date===dk&&r.spaces.length&&r.status==="pendente")list.push({t:reqInConflict(r)?"hit":"pend",title:r.title,s:r.s,e:r.e,space:(r.spaces||[]).join(", "),key:r.key});});
   return list.sort(function(a,b){return toMin(a.s)-toMin(b.s);});
 }
 function pillHtml(e){return '<div class="pill '+e.t+'">'+(e.s?'<b>'+e.s+'</b> ':'')+esc(e.title)+'</div>';}
@@ -708,6 +725,38 @@ function statusChip(r){
   if(r.status==="recusado")return '<span class="chip crit">recusado</span>';
   return '';
 }
+// ===== Reservas (agenda confirmada) com filtro por espaço e departamento =====
+function ensureRangeReservas(){ var t=new Date(); for(var o=-1;o<=6;o++){ ensureMonth(new Date(t.getFullYear(),t.getMonth()+o,1)); } }
+function reRenderReservas(){ var b=document.getElementById("body"); b.innerHTML=reservasHtml(); wireActions(b); wireReservas(b); }
+function wireReservas(scope){
+  var es=scope.querySelector("#resEspaco"),dp=scope.querySelector("#resDepto"),se=scope.querySelector("#resSearch");
+  if(es)es.onchange=function(){window._resEspaco=es.value;reRenderReservas();};
+  if(dp)dp.onchange=function(){window._resDepto=dp.value;reRenderReservas();};
+  if(se)se.oninput=function(){window._resQ=se.value;reRenderReservas();var n=document.getElementById("resSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
+}
+function reservasHtml(){
+  var esp=window._resEspaco||"",dep=window._resDepto||"",q=(window._resQ||"").toLowerCase();
+  var selStyle="font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)";
+  var espOpts='<option value="">Todos os espaços</option>'+cfgEspacos().map(function(s){return '<option value="'+esc(s)+'"'+(s===esp?" selected":"")+'>'+esc(s)+'</option>';}).join("")+'<option value="__none__"'+(esp==="__none__"?" selected":"")+'>(sem local)</option>';
+  var depOpts='<option value="">Todos os departamentos</option>'+cfgDeparts().map(function(d){return '<option value="'+esc(d)+'"'+(d===dep?" selected":"")+'>'+esc(d)+'</option>';}).join("");
+  var bar='<div class="toolbar" style="flex-wrap:wrap;gap:8px">'+
+    '<select id="resEspaco" style="'+selStyle+'">'+espOpts+'</select>'+
+    '<select id="resDepto" style="'+selStyle+'">'+depOpts+'</select>'+
+    '<input id="resSearch" placeholder="Buscar por título…" value="'+esc(window._resQ||"")+'" style="flex:1;min-width:180px;'+selStyle+'"></div>';
+  var list=DATA.calendar.slice().filter(function(c){
+    if(esp==="__none__"){ if(c.space) return false; } else if(esp){ if(c.space!==esp) return false; }
+    if(dep && (c.title||"").toLowerCase().indexOf(dep.toLowerCase())<0) return false;
+    if(q && (c.title||"").toLowerCase().indexOf(q)<0) return false;
+    return true;
+  }).sort(function(a,b){ return (a.date+"T"+a.s).localeCompare(b.date+"T"+b.s); });
+  var summ='<p class="summ">'+list.length+' reserva(s) na agenda · período carregado (~8 meses). Abra o calendário e navegue para carregar outros meses.</p>';
+  if(!list.length) return bar+summ+'<div class="empty">Nenhuma reserva para esse filtro.</div>';
+  return bar+summ+'<div class="rows">'+list.map(function(c){
+    var sp=c.space?'<span class="chip space">'+esc(c.space)+'</span>':'<span class="chip crit">sem local</span>';
+    var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(c.space||"")+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'">✎ Editar</button>':'';
+    return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(c.title)+'</span><span class="rmeta"><span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>'+sp+'</span></div><span class="rwhen mono">'+fmtD(c.date)+'<br>'+esc(c.s)+'–'+esc(c.e)+'</span>'+editBtn+'</div>';
+  }).join("")+'</div>';
+}
 function pedidosHtml(){
   var pend=DATA.requests.filter(function(r){return r.status==="pendente";}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
   var apr=DATA.requests.filter(function(r){return r.status==="aprovado";}).length;
@@ -716,7 +765,7 @@ function pedidosHtml(){
   var q=(window._pedQ||"").toLowerCase();
   var bar='<div class="toolbar"><input id="pedSearch" placeholder="Filtrar por evento, depto, pessoa, espaço…" value="'+esc(window._pedQ||"")+'" style="flex:1;max-width:360px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></div>';
   if(q){ pend=pend.filter(function(r){return ((r.title||"")+" "+(r.dept||"")+" "+(r.tagPastor||"")+" "+(r.solicitante||"")+" "+(r.spaces||[]).join(" ")).toLowerCase().indexOf(q)>-1;}); }
-  if(!pend.length)return summ+bar+'<div class="empty">Nenhum pedido'+(q?" para esse filtro":" pendente")+'.</div>';
+  if(!pend.length)return summ+bar+'<div class="empty">Nenhuma solicitação'+(q?" para esse filtro":" pendente")+'.</div>';
   return summ+bar+bulkBar()+'<div class="rows">'+pend.map(function(r){
     var chips=r.spaces.length?r.spaces.map(function(s){return '<span class="chip space">'+esc(s)+'</span>';}).join(""):'<span class="chip">sem espaço reconhecido</span>';
     var tag=r.tagPastor?'<span class="chip">✝ '+esc(r.tagPastor)+'</span>':(r.dept?'<span class="chip">'+esc(r.dept)+'</span>':'');

@@ -450,7 +450,7 @@ function adicionarOcorrencia(data, aprovarJa){
   if(aprovarJa){
     aprovar({ key:res.key, title:data.title, dept:data.dept||'', tagPastor:data.tagPastor||'',
       solicitante:data.solicitante||'', email:data.email||'', date:data.date, s:data.s, e:data.e,
-      spaces:data.spaces||[], needs:data.needs, origem:'Secretaria' });
+      spaces:data.spaces||[], needs:data.needs, recorrencia:data.recorrencia, origem:'Secretaria' });
   }
   return { ok:true };
 }
@@ -662,7 +662,13 @@ function aprovar(req){
   var desc = [quem, req.solicitante?('Solicitante: '+req.solicitante):'', 'Origem: '+(req.origem||''), 'Aprovado via Central de Reservas'].filter(String).join('\n');
   var opts = { location: local, description: desc };
   if(req.email && /@/.test(req.email)){ opts.guests = req.email; opts.sendInvites = true; }
-  var ev = cal.createEvent(titulo, start, end, opts);
+  var ev;
+  if(req.recorrencia && +req.recorrencia.vezes > 1){
+    var rec = CalendarApp.newRecurrence().addWeeklyRule().times(+req.recorrencia.vezes); // toda semana, X vezes
+    ev = cal.createEventSeries(titulo, start, end, rec, opts);
+  } else {
+    ev = cal.createEvent(titulo, start, end, opts);
+  }
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
   // avisa o solicitante que foi confirmado
@@ -688,13 +694,19 @@ function recusar(req){
   return { ok:true };
 }
 
+/** Remove da agenda um evento único OU uma série recorrente, pelo id. */
+function apagarEvento_(cal, id){
+  if(!id) return;
+  try{ var ev = cal.getEventById(id); if(ev){ ev.deleteEvent(); return; } }catch(e){}
+  try{ var s = cal.getEventSeriesById(id); if(s){ s.deleteEventSeries(); } }catch(e){}
+}
+
 /** Excluir/ocultar: some da lista, MAS não apaga da planilha do formulário. */
 function excluir(item){
   if(!item || !item.key) throw new Error('Item inválido.');
-  // se tiver evento criado, remove da agenda também
   var estado = readEstado_(), st = estado[item.key];
   if(st && st.eventId){
-    try { var cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+    try { apagarEvento_(CalendarApp.getCalendarById(cfg().fontes.agenda), st.eventId); } catch(e){}
   }
   upsertEstado_(item.key, { status:'excluido', eventId:'' });
   return { ok:true };
@@ -708,7 +720,7 @@ function excluirLote(keys){
     var k = keys[i]; if(!k) continue;
     var st = estado[k];
     if(st && st.eventId){
-      try { if(!cal) cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+      try { if(!cal) cal = CalendarApp.getCalendarById(cfg().fontes.agenda); apagarEvento_(cal, st.eventId); } catch(e){}
     }
     upsertEstado_(k, { status:'excluido', eventId:'' });
     n++;
@@ -721,7 +733,7 @@ function desfazer(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
   var estado = readEstado_(), st = estado[req.key];
   if(st && st.eventId){
-    try { var cal = CalendarApp.getCalendarById(cfg().fontes.agenda); var ev = cal.getEventById(st.eventId); if(ev) ev.deleteEvent(); } catch(e){}
+    try { apagarEvento_(CalendarApp.getCalendarById(cfg().fontes.agenda), st.eventId); } catch(e){}
   }
   upsertEstado_(req.key, { status:'pendente', eventId:'' });
   return { ok:true };
