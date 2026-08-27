@@ -1,8 +1,31 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<base target="_top">
 <meta charset="utf-8">
+<script src="config.js"></script>
+<script>
+// Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
+var google={script:{}};
+(function(){
+  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento"];
+  function builder(){
+    var onOk=null,onErr=null;
+    var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
+    FN.forEach(function(name){
+      api[name]=function(){
+        var args=[].slice.call(arguments);
+        var tok=(window.AUTH||localStorage.getItem("fhop_token")||"");
+        fetch(window.EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:name,args:args,token:tok})})
+          .then(function(r){return r.json();})
+          .then(function(j){ if(j&&j.error){ if(onErr)onErr(new Error(j.error)); } else { if(onOk)onOk(j?j.result:undefined); } })
+          .catch(function(e){ if(onErr)onErr(e); });
+      };
+    });
+    return api;
+  }
+  Object.defineProperty(google.script,"run",{get:function(){return builder();}});
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -157,7 +180,7 @@
     </svg>
     <span class="live"><span class="dot"></span> Ao vivo</span>
   </div>
-  <div class="s" style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">Secretaria <span id="meLabel" style="text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:500"></span><a href="<?= BASEURL ?>" target="_top" style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:5px 11px;text-decoration:none">Sair ↪</a></div>
+  <div class="s" style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">Secretaria <span id="meLabel" style="text-transform:none;letter-spacing:0;color:var(--ink-faint);font-weight:500"></span><a href="index.html" onclick="localStorage.removeItem('fhop_token')" style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:5px 11px;text-decoration:none">Sair ↪</a></div>
   <h1>Central de Reservas</h1>
   <p class="sub">Lê em tempo real as planilhas e a agenda. Aprovar cria o evento e convida o solicitante.</p>
 
@@ -260,7 +283,8 @@
 var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 var MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 var MESAB=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-var AUTH="<?= AUTH ?>";
+var AUTH=localStorage.getItem("fhop_token")||"";
+if(!AUTH){ location.href="index.html?login=1"; }
 var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000, calView="mes", ME={email:"",admin:false}, CFG=null;
 
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
@@ -844,7 +868,7 @@ function loadData(){
     })
     .getDados();
 }
-google.script.run.withSuccessHandler(function(m){ME=m||ME; var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe(AUTH);
+google.script.run.withSuccessHandler(function(m){ME=m||ME; if(!ME.admin){localStorage.removeItem("fhop_token");location.href="index.html?login=1";return;} var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe(AUTH);
 google.script.run.withSuccessHandler(function(c){CFG=c;}).getConfig();
 loadData();
 setInterval(loadData, REFRESH_MS); // relê sozinho — novos pedidos aparecem em qualquer dispositivo

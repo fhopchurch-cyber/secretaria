@@ -97,7 +97,69 @@ function norm(raw){
   var k = String(raw).toLowerCase().trim().replace(/\s+/g,' ');
   if(AL[k]) return AL[k];
   for(var a in AL){ if(k.indexOf(a) > -1) return AL[a]; }
+  // fallback: o próprio nome canônico do espaço aparece no texto (ex.: "Sala 1")
+  var esp = cfg().espacos || [];
+  for(var i=0;i<esp.length;i++){ if(k.indexOf(String(esp[i]).toLowerCase()) > -1) return esp[i]; }
   return null;
+}
+/** Define/edita o espaço de um evento da agenda (grava o local no próprio Google Agenda). */
+function definirEspacoEvento(eventId, space){
+  return editarEvento(eventId, { space: space });
+}
+/** Edita um evento da agenda: espaço, horário e (opcional) e-mail de confirmação. */
+function editarEvento(eventId, campos){
+  if(!eventId) throw new Error('Evento inválido.');
+  campos = campos || {};
+  var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+  var ev = cal.getEventById(eventId);
+  if(!ev) throw new Error('Evento não encontrado na agenda.');
+  if(campos.space != null) ev.setLocation(campos.space);
+  if(campos.date && campos.s && campos.e){
+    ev.setTime(mkDate_(campos.date, campos.s), mkDate_(campos.date, campos.e));
+  }
+  if(campos.enviarEmail && campos.email && /@/.test(campos.email)){
+    try{ ev.addGuest(campos.email); }catch(e){}
+    var d = ev.getStartTime();
+    sendMail_(campos.email, 'Reserva confirmada: ' + ev.getTitle(),
+      'Sua reserva está confirmada.\n\n' +
+      'Evento: ' + ev.getTitle() + '\n' +
+      'Data: ' + fmtBR_(Utilities.formatDate(d, TZ, 'yyyy-MM-dd')) + '\n' +
+      'Horário: ' + Utilities.formatDate(d, TZ, 'HH:mm') + '–' + Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm') + '\n' +
+      'Local: ' + (campos.space || ev.getLocation() || '') + '\n\n— Central de Reservas FHOP');
+  }
+  invalidarCache_();
+  try{ var dd = ev.getStartTime(); CacheService.getScriptCache().remove('ag-'+dd.getFullYear()+'-'+dd.getMonth()); }catch(e){}
+  return { ok:true };
+}
+
+/* =========================================================
+ * API (para o site hospedado no GitHub Pages chamar por fetch).
+ * Responde JSON. Funções sensíveis exigem token (login por senha).
+ * ========================================================= */
+var API_PUBLIC = { getOcupacao:1, enviarReserva:1, recuperarSenha:1, getMe:1, getSelfUrl:1 };
+function _apiMap_(){
+  return {
+    getOcupacao:getOcupacao, enviarReserva:enviarReserva, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl,
+    getDados:getDados, getConfig:getConfig, saveConfig:saveConfig,
+    aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
+    editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
+    adicionarOcorrencia:adicionarOcorrencia, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
+    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento
+  };
+}
+function apiCall_(fn, args, token){
+  var map = _apiMap_(), f = map[fn];
+  if(!f) throw new Error('Função não permitida: ' + fn);
+  if(!API_PUBLIC[fn] && !validPainelToken_(token)) throw new Error('Sessão inválida — faça login novamente.');
+  return f.apply(null, args || []);
+}
+function doPost(e){
+  var res;
+  try{
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    res = { result: apiCall_(body.fn, body.args || [], body.token || '') };
+  }catch(err){ res = { error: String((err && err.message) || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
 }
 
 /** Um único link: a página de reserva serve todo mundo; com login (senha) abre o painel. */
@@ -303,6 +365,7 @@ function _computeDados_(){
       var ev = evs[m2];
       var space = norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
       out.calendar.push({
+        id: ev.getId(),
         title: ev.getTitle(),
         date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
@@ -502,6 +565,7 @@ function getAgendaMes(ano, mes){
     var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
     for(var i=0;i<evs.length;i++){ var ev = evs[i];
       out.push({
+        id: ev.getId(),
         title: ev.getTitle(),
         date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
