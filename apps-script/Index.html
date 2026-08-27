@@ -245,7 +245,7 @@
   <form method="dialog" class="dlg" id="evtForm" style="max-width:440px">
     <h2>Editar evento</h2>
     <p class="dsub" id="evtSub">Ajusta o evento no próprio Google Agenda. Só o que você preencher é alterado.</p>
-    <div class="field"><label for="evtSpace">Espaço</label><select id="evtSpace"></select></div>
+    <div class="field"><label>Espaço(s)</label><div class="spacegrid" id="evtSpaceGrid"></div></div>
     <div class="grid2">
       <div class="field"><label for="evtDate">Data</label><input id="evtDate" type="date"></div>
       <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="evtStart" type="time" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="evtEnd" type="time" style="flex:1"></div></div>
@@ -290,6 +290,7 @@ var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000, calView="
 
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function overlap(a,b){return a.date===b.date&&a.s&&a.e&&b.s&&b.e&&toMin(a.s)<toMin(b.e)&&toMin(b.s)<toMin(a.e);}
+function evSpaces(c){return (c&&c.spaces&&c.spaces.length)?c.spaces:(c&&c.space?[c.space]:[]);}
 function parseD(d){var p=d.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
 function fmtD(d){var t=parseD(d);return t.getDate()+" "+MESAB[t.getMonth()];}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
@@ -488,7 +489,7 @@ function checkAddConflict(){
   if(!date||!s||!e||!sp.length){bn.style.display="none";return;}
   ensureMonth(new Date(date+"T12:00:00")); // garante que o mês do lançamento esteja carregado
   var cand={date:date,s:s,e:e},hits=[];
-  (DATA.calendar||[]).forEach(function(c){if(c.space&&sp.indexOf(c.space)>-1&&overlap(cand,c))hits.push(esc(c.space)+" — "+esc(c.title)+" ("+c.s+"–"+c.e+")");});
+  (DATA.calendar||[]).forEach(function(c){var sh=evSpaces(c).filter(function(x){return sp.indexOf(x)>-1;});if(sh.length&&overlap(cand,c))hits.push(esc(sh.join(", "))+" — "+esc(c.title)+" ("+c.s+"–"+c.e+")");});
   (DATA.requests||[]).forEach(function(r){if(r.status!=="pendente")return;var sh=(r.spaces||[]).filter(function(x){return sp.indexOf(x)>-1;});if(sh.length&&overlap(cand,r))hits.push(esc(sh[0])+" — "+esc(r.title)+" ("+r.s+"–"+r.e+")");});
   if(!hits.length){bn.style.display="block";bn.style.background="var(--ok-bg)";bn.style.color="var(--ok)";bn.style.border="1px solid var(--ok-line)";bn.innerHTML="✓ Espaço(s) livre(s) nesse horário.";}
   else{bn.style.display="block";bn.style.background="var(--crit-bg,#fdecec)";bn.style.color="var(--crit)";bn.style.border="1px solid var(--crit)";bn.innerHTML="⚠ Conflito nesse horário:<br>"+hits.join("<br>")+"<br><br>Você ainda pode salvar, mas confira antes.";}
@@ -546,8 +547,8 @@ function openEnc(k){
 var evtId=null;
 function openEvtEdit(id,title,cur,date,s,e){
   evtId=id;
-  var sel=document.getElementById("evtSpace");sel.innerHTML="<option value=''>(sem local)</option>"+cfgEspacos().map(function(x){return '<option value="'+esc(x)+'">'+esc(x)+'</option>';}).join("");
-  try{sel.value=cur||"";}catch(_){}
+  var cs=(cur||"").split(",").map(function(x){return x.trim();}).filter(Boolean);
+  document.getElementById("evtSpaceGrid").innerHTML=cfgEspacos().map(function(x){var ck=cs.indexOf(x)>-1?" checked":"";return '<label><input type="checkbox" value="'+esc(x)+'"'+ck+'> '+esc(x)+'</label>';}).join("");
   document.getElementById("evtDate").value=(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))?date:"";
   document.getElementById("evtStart").value=s||"";document.getElementById("evtEnd").value=e||"";
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
@@ -557,7 +558,8 @@ function openEvtEdit(id,title,cur,date,s,e){
 document.getElementById("evtCancel").onclick=function(){document.getElementById("evtDialog").close();};
 document.getElementById("evtForm").addEventListener("submit",function(ev){
   ev.preventDefault();if(!evtId)return;
-  var campos={space:document.getElementById("evtSpace").value,date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked};
+  var esel=[];document.querySelectorAll("#evtSpaceGrid input:checked").forEach(function(c){esel.push(c.value);});
+  var campos={space:esel.join(", "),date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked};
   if(campos.s&&campos.e&&toMin(campos.e)<=toMin(campos.s)){toast("Término deve ser depois do início",true);return;}
   if(campos.enviarEmail&&!campos.email){toast("Informe o e-mail para enviar a confirmação",true);return;}
   document.getElementById("evtDialog").close();toast("Salvando na agenda…");
@@ -601,8 +603,9 @@ function computeConflicts(){
   // pedido x agenda confirmada
   reqs.forEach(function(r){
     DATA.calendar.forEach(function(c){
-      if(!c.space||!overlap(r,c))return;
-      if(r.spaces.indexOf(c.space)>-1)conflicts.push({req:r,other:c,space:c.space,tipo:"agenda"});
+      if(!overlap(r,c))return;
+      var sh=evSpaces(c).filter(function(x){return r.spaces.indexOf(x)>-1;});
+      if(sh.length)conflicts.push({req:r,other:c,space:sh.join(", "),tipo:"agenda"});
     });
   });
   // pedido x pedido
@@ -680,7 +683,7 @@ function shiftCur(dir){
 
 function evAll(dk){ // só a agenda confirmada (solicitações pendentes ficam na aba Solicitações)
   var list=[];
-  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:c.space||"",id:c.id||""});});
+  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:evSpaces(c).join(", "),id:c.id||""});});
   return list.sort(function(a,b){return toMin(a.s)-toMin(b.s);});
 }
 function pillHtml(e){return '<div class="pill '+e.t+'">'+(e.s?'<b>'+e.s+'</b> ':'')+esc(e.title)+'</div>';}
@@ -783,7 +786,7 @@ function reservasHtml(){
     '<select id="resDepto" style="'+selStyle+'">'+depOpts+'</select>'+
     '<input id="resSearch" placeholder="Buscar por título…" value="'+esc(window._resQ||"")+'" style="flex:1;min-width:180px;'+selStyle+'"></div>';
   var list=DATA.calendar.slice().filter(function(c){
-    if(esp==="__none__"){ if(c.space) return false; } else if(esp){ if(c.space!==esp) return false; }
+    if(esp==="__none__"){ if(evSpaces(c).length) return false; } else if(esp){ if(evSpaces(c).indexOf(esp)<0) return false; }
     if(dep && (c.title||"").toLowerCase().indexOf(dep.toLowerCase())<0) return false;
     if(q && (c.title||"").toLowerCase().indexOf(q)<0) return false;
     return true;
@@ -791,8 +794,8 @@ function reservasHtml(){
   var summ='<p class="summ">'+list.length+' reserva(s) na agenda · período carregado (~8 meses). Abra o calendário e navegue para carregar outros meses.</p>';
   if(!list.length) return bar+summ+'<div class="empty">Nenhuma reserva para esse filtro.</div>';
   return bar+summ+'<div class="rows">'+list.map(function(c){
-    var sp=c.space?'<span class="chip space">'+esc(c.space)+'</span>':'<span class="chip crit">sem local</span>';
-    var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(c.space||"")+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'">✎ Editar</button>':'';
+    var sp=evSpaces(c).length?'<span class="chip space">'+esc(evSpaces(c).join(", "))+'</span>':'<span class="chip crit">sem local</span>';
+    var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(evSpaces(c).join(", "))+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'">✎ Editar</button>':'';
     var delBtn=c.id?'<button class="btn-sm crit" data-evtdel="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" style="margin-left:4px">🗑</button>':'';
     return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(c.title)+'</span><span class="rmeta"><span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>'+sp+'</span></div><span class="rwhen mono">'+fmtD(c.date)+'<br>'+esc(c.s)+'–'+esc(c.e)+'</span>'+editBtn+delBtn+'</div>';
   }).join("")+'</div>';
@@ -942,7 +945,7 @@ function ensureMonth(d){ var mk=_mk(d); if(isBaseMonth(mk)||extraMonths[mk])retu
 function loadData(){
   var bar=document.querySelector(".refresh"); if(bar) bar.classList.add("loading");
   google.script.run
-    .withSuccessHandler(function(d){ DATA=d; LAST=new Date(); mergeExtra(); render(); })
+    .withSuccessHandler(function(d){ DATA=d; LAST=new Date(); mergeExtra(); if(tab==="admin"){var bar=document.querySelector(".refresh"); if(bar)bar.classList.remove("loading");} else { render(); } })
     .withFailureHandler(function(err){
       if(!DATA) document.getElementById("app").innerHTML='<div class="errbox">Erro ao ler os dados: '+esc(err.message||err)+'</div>';
       var b=document.querySelector(".refresh"); if(b) b.classList.remove("loading");

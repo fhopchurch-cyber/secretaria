@@ -105,6 +105,16 @@ function norm(raw){
   for(var i=0;i<esp.length;i++){ if(k.indexOf(String(esp[i]).toLowerCase()) > -1) return esp[i]; }
   return null;
 }
+/** Reconhece TODOS os espaços canônicos presentes no texto (evento com múltiplos espaços). */
+function normAll(raw){
+  if(!raw) return [];
+  var k = String(raw).toLowerCase().trim().replace(/\s+/g,' ');
+  var AL = cfg().aliases, esp = cfg().espacos || [], found = [];
+  function add(v){ if(v && found.indexOf(v)<0) found.push(v); }
+  for(var a in AL){ if(k.indexOf(a) > -1) add(AL[a]); }
+  for(var i=0;i<esp.length;i++){ if(k.indexOf(String(esp[i]).toLowerCase()) > -1) add(esp[i]); }
+  return found;
+}
 /** Define/edita o espaço de um evento da agenda (grava o local no próprio Google Agenda). */
 function definirEspacoEvento(eventId, space){
   return editarEvento(eventId, { space: space });
@@ -128,7 +138,8 @@ function editarEvento(eventId, campos){
   if(!ev) throw new Error('Evento não encontrado na agenda.');
   if(campos.space != null){
     ev.setLocation(campos.space);
-    var cor = corEvento_(campos.space); if(cor){ try{ ev.setColor(cor); }catch(e){} }
+    var _c1 = String(campos.space).split(',')[0].trim();
+    var cor = corEvento_(_c1); if(cor){ try{ ev.setColor(cor); }catch(e){} }
     // garante o espaço na descrição
     try{
       var d0 = ev.getDescription() || '';
@@ -385,14 +396,15 @@ function _computeDados_(){
     var evs = cal.getEvents(ini, fim);
     for(var m2=0; m2<evs.length; m2++){
       var ev = evs[m2];
-      var space = norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
+      var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
       out.calendar.push({
         id: ev.getId(),
         title: ev.getTitle(),
         date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
-        space: space
+        space: _all[0] || null,
+        spaces: _all
       });
     }
   }catch(err){ out.erros.push('Agenda: '+err); }
@@ -649,13 +661,15 @@ function getAgendaMes(ano, mes){
     var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
     var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
     for(var i=0;i<evs.length;i++){ var ev = evs[i];
+      var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
       out.push({
         id: ev.getId(),
         title: ev.getTitle(),
         date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
-        space: norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '))
+        space: _all[0] || null,
+        spaces: _all
       });
     }
   }catch(e){}
@@ -692,11 +706,12 @@ function getOcupacao(){
     var evs = cal.getEvents(new Date(+cp[0],+cp[1]-1,+cp[2]), new Date(+cp[0]+1,+cp[1]-1,+cp[2]));
     for(var i=0;i<evs.length;i++){
       var ev = evs[i];
-      var space = norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
-      if(!space) continue;
-      out.push({ date: Utilities.formatDate(ev.getStartTime(),TZ,'yyyy-MM-dd'),
-        s: Utilities.formatDate(ev.getStartTime(),TZ,'HH:mm'),
-        e: Utilities.formatDate(ev.getEndTime(),TZ,'HH:mm'), space: space });
+      var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
+      if(!_all.length) continue;
+      var _d = Utilities.formatDate(ev.getStartTime(),TZ,'yyyy-MM-dd'),
+          _s = Utilities.formatDate(ev.getStartTime(),TZ,'HH:mm'),
+          _e = Utilities.formatDate(ev.getEndTime(),TZ,'HH:mm');
+      for(var _j=0;_j<_all.length;_j++){ out.push({ date:_d, s:_s, e:_e, space:_all[_j] }); }
     }
   }catch(e){}
   return out;
