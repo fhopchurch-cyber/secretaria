@@ -10,7 +10,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento"];
+  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -360,6 +360,7 @@ function doAprovar(k){var r=REQ[k];if(!r)return;r.status="aprovado";render();toa
 function doRecusar(k){var r=REQ[k];if(!r)return;r.status="recusado";render();toast("✕ Recusado");_bg("recusar",r);}
 function doDesfazer(k){var r=REQ[k];if(!r)return;r.status="pendente";render();toast("↩ Desfeito");_bg("desfazer",r);}
 function doExcluir(k){var it=REQ[k]||PAS[k];if(!it)return;it.status="excluido";render();toast("🗑 Removido");_bg("excluir",it);}
+function doMigrar(k){var r=REQ[k];if(!r)return;if(!confirm('Mover esta solicitação para a aba Atendimento? Você poderá detalhar e encaminhar ao pastor.'))return;r.status="excluido";render();BUSY=true;toast("Migrando para atendimento…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("→ Movido para Atendimento");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);loadData();}).migrarParaAtendimento(r);}
 function doEncaminhar(k,pastor){var p=PAS[k];if(p&&pastor){BUSY=true;toast("Encaminhando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Encaminhado a "+pastor);loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).encaminhar(p,pastor);}}
 function doEditar(k,fields){var r=REQ[k];if(!r)return;BUSY=true;toast("Salvando…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("✎ Alterações salvas");document.getElementById("editDialog").close();loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).editar(r,fields);}
 
@@ -422,6 +423,7 @@ function wireActions(scope){
   scope.querySelectorAll("[data-desfazer]").forEach(function(b){b.onclick=function(){doDesfazer(b.getAttribute("data-desfazer"));};});
   scope.querySelectorAll("[data-excluir]").forEach(function(b){b.onclick=function(){doExcluir(b.getAttribute("data-excluir"));};});
   scope.querySelectorAll("[data-editar]").forEach(function(b){b.onclick=function(){openEdit(b.getAttribute("data-editar"));};});
+  scope.querySelectorAll("[data-migrar]").forEach(function(b){b.onclick=function(){doMigrar(b.getAttribute("data-migrar"));};});
   scope.querySelectorAll("[data-enc2]").forEach(function(b){b.onclick=function(){openEnc(b.getAttribute("data-enc2"));};});
   scope.querySelectorAll("[data-editpas]").forEach(function(b){b.onclick=function(){openPatEdit(b.getAttribute("data-editpas"));};});
   scope.querySelectorAll("[data-evtedit]").forEach(function(b){b.onclick=function(){openEvtEdit(b.getAttribute("data-evtedit"),b.getAttribute("data-evttitle"),b.getAttribute("data-evtcur"),b.getAttribute("data-evtdate"),b.getAttribute("data-evts"),b.getAttribute("data-evte"));};});
@@ -798,6 +800,7 @@ function actionsHtml(r){
     '<button class="btn-sm ok" data-aprovar="'+esc(r.key)+'">✓ Aprovar</button>'+
     '<button class="btn-sm crit" data-recusar="'+esc(r.key)+'">✕ Recusar</button>'+
     '<button class="btn-sm" data-editar="'+esc(r.key)+'">✎ Editar</button>'+
+    '<button class="btn-sm" data-migrar="'+esc(r.key)+'" title="É um atendimento pastoral? Move para a aba Atendimento.">→ Atendimento</button>'+
     '<button class="btn-sm" data-excluir="'+esc(r.key)+'">🗑</button>'+
   '</div>';
 }

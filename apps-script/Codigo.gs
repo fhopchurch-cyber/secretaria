@@ -205,7 +205,8 @@ function _apiMap_(){
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
-    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento
+    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento,
+    migrarParaAtendimento:migrarParaAtendimento
   };
 }
 function apiCall_(fn, args, token){
@@ -380,7 +381,8 @@ function _computeDados_(){
       var tp = str(rw[cs.tipo]) || 'reserva';
       if(tp === 'atendimento'){
         // atendimento lançado no painel → vai para a aba Atendimentos (motivo guardado na coluna dept)
-        out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]), spaces: splitSpaces(rw[cs.spaces]), origem: 'Lançado no painel' });
+        var _nd = (function(){ try{ return rw[cs.needs] ? JSON.parse(rw[cs.needs]) : null; }catch(e){ return null; } })();
+        out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]), spaces: splitSpaces(rw[cs.spaces]), solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]), telefone: (_nd && _nd.telefone) ? String(_nd.telefone) : '', origem: str(rw[cs.dept]) ? 'Lançado no painel' : 'Migrado de solicitação' });
         continue;
       }
       out.requests.push({
@@ -854,6 +856,26 @@ function excluir(item){
   }
   upsertEstado_(item.key, { status:'excluido', eventId:'' });
   return { ok:true };
+}
+
+/** Converte uma SOLICITAÇÃO de reserva em ATENDIMENTO pastoral (casos em que o pastor usou o form de reserva). */
+function migrarParaAtendimento(req){
+  if(!req || !req.key) throw new Error('Solicitação inválida.');
+  var novo = {
+    title: req.solicitante || req.title || 'Atendimento',   // nome da pessoa
+    tipo: 'atendimento',
+    dept: req.title || '',                                    // vira o "motivo"
+    tagPastor: req.tagPastor || '',
+    solicitante: req.solicitante || '',
+    email: req.email || '',
+    date: req.date || '', s: req.s || '', e: req.e || '',
+    spaces: req.spaces || [],
+    needs: req.needs || null
+  };
+  var res = enviarReserva(novo);      // cria o atendimento (linha tipo=atendimento)
+  excluir(req);                       // tira a solicitação original da fila
+  invalidarCache_();
+  return { ok:true, key: res.key };
 }
 
 /** Excluir em lote: recebe uma lista de keys, remove eventos e marca como excluído. */
