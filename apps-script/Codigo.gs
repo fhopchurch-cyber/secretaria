@@ -39,6 +39,30 @@ var RESP_DEF = [{papel:'Patrimônio', nome:'', email:''},{papel:'Audiovisual', n
 // Cor do evento no Google Agenda por espaço (id "1".."11" das cores do Google).
 var CORES_DEF = {'Auditório':'9','Nave do Templo':'3','Sala 1':'1','Sala 2':'11','Área Gourmet':'7','Sala Verde/Estúdio':'2','Sala de reunião/atendimento':'6','Briefing':'4','Estacionamento':'8'};
 
+// Conteúdo editável da página pública de reserva (textos + listas de insumos). Os 3 grupos têm
+// identidade FIXA (patrim/av/sec) para não quebrar o roteamento dos e-mails; só rótulo e itens mudam.
+var PAGINA_DEF = {
+  titulo: 'Reserva de espaço',
+  lead: 'Preencha abaixo. Ao escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.',
+  rodape: '',
+  insumos: {
+    patrim: { rotulo:'Patrimônio', itens:['Cadeiras','Mesas','Outros objetos'] },
+    av:     { rotulo:'Audiovisual', itens:['Sistema de som','Microfone(s)','Iluminação especial'] },
+    sec:    { rotulo:'Secretaria (café/insumos)', itens:['Chaleira Elétrica','Garrafa Térmica','Café','Açúcar','Copos descartáveis','Geladeira','Projetor','Telão/Quadro'] }
+  }
+};
+function normPagina_(p){
+  p = p || {}; var ins = p.insumos || {};
+  function g(k){ var x = ins[k]||{}, d = PAGINA_DEF.insumos[k];
+    return { rotulo: (x.rotulo!=null?x.rotulo:d.rotulo), itens: (x.itens instanceof Array ? x.itens : d.itens) }; }
+  return {
+    titulo: p.titulo!=null ? p.titulo : PAGINA_DEF.titulo,
+    lead:   p.lead!=null   ? p.lead   : PAGINA_DEF.lead,
+    rodape: p.rodape!=null ? p.rodape : PAGINA_DEF.rodape,
+    insumos: { patrim:g('patrim'), av:g('av'), sec:g('sec') }
+  };
+}
+
 // Config ao vivo (defaults + o que o Admin salvou na Central). Cache por execução.
 var _CFG = null;
 function cfg(){
@@ -60,11 +84,14 @@ function cfg(){
     painelUser: stored.painelUser || 'fhopchurch@fhop.com',
     painelPass: stored.painelPass || 'fhopchurch1234',
     recoveryEmail: stored.recoveryEmail || 'fhopchurch@fhop.com',
-    cores: Object.assign({}, CORES_DEF, stored.cores||{})
+    cores: Object.assign({}, CORES_DEF, stored.cores||{}),
+    pagina: normPagina_(stored.pagina)
   };
   return _CFG;
 }
 function getConfig(){ return cfg(); }
+/** Conteúdo público da página de reserva (sem exigir login): textos, insumos, espaços e departamentos. */
+function getPagina(){ var c = cfg(); return { pagina: c.pagina, espacos: c.espacos, departamentos: c.departamentos }; }
 function getLinkPainel(){ return cfg().linkPainel || ''; } // exposto à página pública (só a URL)
 function getMe(token){
   var ok = validPainelToken_(token);
@@ -169,10 +196,10 @@ function editarEvento(eventId, campos){
  * API (para o site hospedado no GitHub Pages chamar por fetch).
  * Responde JSON. Funções sensíveis exigem token (login por senha).
  * ========================================================= */
-var API_PUBLIC = { getOcupacao:1, enviarReserva:1, recuperarSenha:1, getMe:1, getSelfUrl:1 };
+var API_PUBLIC = { getOcupacao:1, enviarReserva:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1 };
 function _apiMap_(){
   return {
-    getOcupacao:getOcupacao, enviarReserva:enviarReserva, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl,
+    getOcupacao:getOcupacao, enviarReserva:enviarReserva, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl, getPagina:getPagina,
     getDados:getDados, getConfig:getConfig, saveConfig:saveConfig,
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,

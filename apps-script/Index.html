@@ -213,11 +213,11 @@
     </div>
     <details id="aNeedsWrap" style="margin:0 0 12px;border:1px solid var(--line);border-radius:10px;padding:0 12px">
       <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:10px 0">Precisa de algo? (patrimônio, secretaria, AV…)</summary>
-      <div class="nh" style="margin-top:2px">Patrimônio</div><div class="needs" id="aGridP"></div>
-      <div class="field" style="margin:6px 0 4px"><label for="aTxtP">Patrimônio — descreva</label><textarea id="aTxtP" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
-      <div class="nh">Audiovisual</div><div class="needs" id="aGridAV"></div>
-      <div class="field" style="margin:6px 0 4px"><label for="aTxtAV">Audiovisual — descreva</label><textarea id="aTxtAV" rows="2" placeholder="Ex.: 2 microfones, som, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
-      <div class="nh">Secretaria (café/insumos)</div><div class="needs" id="aGridSec"></div>
+      <div class="nh" id="aNhP" style="margin-top:2px">Patrimônio</div><div class="needs" id="aGridP"></div>
+      <div class="field" style="margin:6px 0 4px"><label for="aTxtP" id="aLblP">Patrimônio — descreva</label><textarea id="aTxtP" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+      <div class="nh" id="aNhAV">Audiovisual</div><div class="needs" id="aGridAV"></div>
+      <div class="field" style="margin:6px 0 4px"><label for="aTxtAV" id="aLblAV">Audiovisual — descreva</label><textarea id="aTxtAV" rows="2" placeholder="Ex.: 2 microfones, som, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+      <div class="nh" id="aNhSec">Secretaria (café/insumos)</div><div class="needs" id="aGridSec"></div>
       <div class="field" style="margin:6px 0 10px"><label for="aObs">Outras observações (só p/ secretaria)</label><input id="aObs" type="text" placeholder="Ex.: café para 30 pessoas" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></div>
     </details>
     <div id="addBanner" style="display:none;margin:0 0 12px;padding:10px 12px;border-radius:9px;font-size:13px;line-height:1.4"></div>
@@ -467,9 +467,15 @@ function applyAddType(){
   document.getElementById("aTitle").placeholder=isAt?"Nome de quem será atendido":"Ex.: Reunião de equipe";
   checkAddConflict();
 }
-var ADDNEEDS={"Patrimônio":["Cadeiras","Mesas","Outros objetos"],"Audiovisual":["Sistema de som","Microfone(s)","Iluminação especial"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]};
-function buildNeedsGrid(gridId,cat){var g=document.getElementById(gridId);g.innerHTML=ADDNEEDS[cat].map(function(it){return '<label><input type="checkbox" data-cat="'+esc(cat)+'" value="'+esc(it)+'"> '+esc(it)+'</label>';}).join("");}
-function fillAddNeeds(){buildNeedsGrid("aGridP","Patrimônio");buildNeedsGrid("aGridAV","Audiovisual");buildNeedsGrid("aGridSec","Secretaria (café/insumos)");document.getElementById("aTxtP").value="";document.getElementById("aTxtAV").value="";document.getElementById("aObs").value="";document.getElementById("aNeedsWrap").open=false;}
+var ADDNEEDS_DEF={patrim:{rotulo:"Patrimônio",itens:["Cadeiras","Mesas","Outros objetos"]},av:{rotulo:"Audiovisual",itens:["Sistema de som","Microfone(s)","Iluminação especial"]},sec:{rotulo:"Secretaria (café/insumos)",itens:["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]}};
+function paginaInsumos(){var p=(CFG&&CFG.pagina&&CFG.pagina.insumos)?CFG.pagina.insumos:null;return p||ADDNEEDS_DEF;}
+function buildNeedsGrid(gridId,catCanon,itens){var g=document.getElementById(gridId);g.innerHTML=(itens||[]).map(function(it){return '<label><input type="checkbox" data-cat="'+esc(catCanon)+'" value="'+esc(it)+'"> '+esc(it)+'</label>';}).join("");}
+function fillAddNeeds(){var ins=paginaInsumos();
+  buildNeedsGrid("aGridP","Patrimônio",ins.patrim.itens);buildNeedsGrid("aGridAV","Audiovisual",ins.av.itens);buildNeedsGrid("aGridSec","Secretaria",ins.sec.itens);
+  document.getElementById("aNhP").textContent=ins.patrim.rotulo;document.getElementById("aLblP").textContent=ins.patrim.rotulo+" — descreva";
+  document.getElementById("aNhAV").textContent=ins.av.rotulo;document.getElementById("aLblAV").textContent=ins.av.rotulo+" — descreva";
+  document.getElementById("aNhSec").textContent=ins.sec.rotulo;
+  document.getElementById("aTxtP").value="";document.getElementById("aTxtAV").value="";document.getElementById("aObs").value="";document.getElementById("aNeedsWrap").open=false;}
 function addNeeds(){var needs={obs:document.getElementById("aObs").value.trim(),textos:{patrim:document.getElementById("aTxtP").value.trim(),av:document.getElementById("aTxtAV").value.trim()}};document.getElementById("aNeedsWrap").querySelectorAll("input[type=checkbox]:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});return needs;}
 var addDatas=[];
 function renderDatasChips(){var box=document.getElementById("aDatasList");box.innerHTML=addDatas.slice().sort().map(function(d,i){return '<span class="chip" style="display:inline-flex;gap:6px;align-items:center">'+fmtD(d)+'<button type="button" data-rmdata="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rmdata]").forEach(function(b){b.onclick=function(){var s=addDatas.slice().sort();s.splice(+b.getAttribute("data-rmdata"),1);addDatas=s;renderDatasChips();};});}
@@ -852,6 +858,14 @@ function chipList(key,arr){
   return '<div class="chiplist">'+arr.map(function(v,i){return '<span class="chip-ed">'+esc(v)+'<button data-del="'+key+'" data-i="'+i+'">×</button></span>';}).join("")+'</div>'+
     '<div class="addline"><input type="text" data-addinp="'+key+'" placeholder="adicionar…"><button class="btn-sm" data-add="'+key+'">+ Adicionar</button></div>';
 }
+function pgGrp(chave,g,taSt){
+  var nomes={patrim:"Grupo 1 → Patrimônio",av:"Grupo 2 → Audiovisual",sec:"Grupo 3 → Secretaria"};
+  return '<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">'+
+    '<div style="font-size:11px;font-weight:700;color:var(--ink-faint);margin-bottom:6px">'+esc(nomes[chave]||chave)+'</div>'+
+    '<div class="field"><label>Rótulo visível</label><input data-pgi="'+chave+'" data-pgf="rotulo" value="'+esc(g.rotulo||"")+'"></div>'+
+    '<div class="field"><label>Itens (um por linha)</label><textarea data-pgi="'+chave+'" data-pgf="itens" rows="4" style="'+taSt+'">'+esc((g.itens||[]).join("\n"))+'</textarea></div>'+
+    '</div>';
+}
 function adminHtml(){
   if(!ADMIN) ADMIN = CFG ? JSON.parse(JSON.stringify(CFG)) : null;
   if(!ADMIN) return '<div class="empty">Carregando configurações…</div>';
@@ -866,6 +880,15 @@ function adminHtml(){
     '<div class="field"><label>E-mail de acesso</label><input data-cfg="painelUser" value="'+esc(A.painelUser||"")+'" placeholder="email@email.com"></div>'+
     '<div class="field"><label>Senha</label><div style="display:flex;gap:8px;align-items:center"><input id="cfgPass" data-cfg="painelPass" type="password" value="'+esc(A.painelPass||"")+'" style="flex:1"><button type="button" class="btn-sm" id="cfgPassShow">👁 Mostrar</button></div></div>'+
     '<div class="field"><label>E-mail de recuperação (recebe o lembrete no "esqueci a senha")</label><input data-cfg="recoveryEmail" value="'+esc(A.recoveryEmail||"")+'" placeholder="fhopchurch@fhop.com"></div>'+
+    '</div>';
+  var P=A.pagina||{titulo:"",lead:"",rodape:"",insumos:{}},PI=P.insumos||{};
+  var taSt='width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical';
+  h+='<div class="adminsec"><h3>Página de reserva (pública)</h3><p class="ahint">Personalize textos e listas de insumos do formulário público — sem mexer no código. Os 3 grupos vão sempre para Patrimônio / Audiovisual / Secretaria (roteamento dos e-mails).</p>'+
+    '<div class="field"><label>Título (chapéu acima de "Solicitar reserva")</label><input data-pg="titulo" value="'+esc(P.titulo||"")+'"></div>'+
+    '<div class="field"><label>Texto de instrução (aceita &lt;b&gt;negrito&lt;/b&gt;)</label><textarea data-pg="lead" rows="3" style="'+taSt+'">'+esc(P.lead||"")+'</textarea></div>'+
+    '<div class="field"><label>Rodapé</label><input data-pg="rodape" value="'+esc(P.rodape||"")+'" placeholder="FHOP Church · o preenchimento não garante a reserva…"></div>'+
+    '<div class="nh" style="margin-top:8px">Grupos de insumos (rótulo + itens, um por linha)</div>'+
+    pgGrp("patrim",PI.patrim||{},taSt)+pgGrp("av",PI.av||{},taSt)+pgGrp("sec",PI.sec||{},taSt)+
     '</div>';
   h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
   h+='<div class="adminsec"><h3>Cores no Google Agenda (por espaço)</h3><p class="ahint">Cada espaço vira uma cor no evento criado na agenda (aprovações e séries).</p>';
@@ -901,6 +924,14 @@ function collectAdmin(scope){
   if(Object.keys(pmap).length)ADMIN.pastores=Object.keys(pmap).map(function(i){return pmap[i];}).filter(function(p){return p.nome;});
   var rmap={};scope.querySelectorAll("[data-rrow]").forEach(function(inp){var i=inp.getAttribute("data-rrow");(rmap[i]=rmap[i]||{})[inp.getAttribute("data-f")]=inp.value.trim();});
   if(Object.keys(rmap).length)ADMIN.responsaveis=Object.keys(rmap).map(function(i){return rmap[i];}).filter(function(p){return p.papel||p.nome;});
+  // Página de reserva (textos + insumos)
+  if(scope.querySelector("[data-pg],[data-pgi]")){
+    var pg=ADMIN.pagina||{}; pg.insumos=pg.insumos||{};
+    scope.querySelectorAll("[data-pg]").forEach(function(inp){pg[inp.getAttribute("data-pg")]=inp.value;});
+    var gmap={};scope.querySelectorAll("[data-pgi]").forEach(function(inp){var k=inp.getAttribute("data-pgi"),f=inp.getAttribute("data-pgf");gmap[k]=gmap[k]||{};if(f==="itens")gmap[k].itens=inp.value.split("\n").map(function(x){return x.trim();}).filter(Boolean);else gmap[k][f]=inp.value.trim();});
+    ["patrim","av","sec"].forEach(function(k){if(gmap[k])pg.insumos[k]=Object.assign(pg.insumos[k]||{},gmap[k]);});
+    ADMIN.pagina=pg;
+  }
 }
 function reRenderAdmin(){var b=document.getElementById("body");b.innerHTML=adminHtml();wireAdmin(b);}
 function renderUnrec(box,list){
