@@ -849,6 +849,9 @@ function adminHtml(){
     '<div class="field"><label>E-mail de recuperação (recebe o lembrete no "esqueci a senha")</label><input data-cfg="recoveryEmail" value="'+esc(A.recoveryEmail||"")+'" placeholder="fhopchurch@fhop.com"></div>'+
     '</div>';
   h+='<div class="adminsec"><h3>Espaços</h3>'+chipList("espacos",A.espacos)+'</div>';
+  h+='<div class="adminsec"><h3>Cores no Google Agenda (por espaço)</h3><p class="ahint">Cada espaço vira uma cor no evento criado na agenda (aprovações e séries).</p>';
+  cfgEspacos().forEach(function(sp){ h+='<div class="pxrow"><div style="flex:1;align-self:center">'+esc(sp)+'</div><select data-cor="'+esc(sp)+'">'+coresOpts((A.cores||{})[sp]||"")+'</select></div>'; });
+  h+='</div>';
   h+='<div class="adminsec"><h3>Espaços não reconhecidos na agenda</h3><p class="ahint">Eventos cujo espaço o sistema não identificou — <b>não entram na checagem de conflito</b>. Escolha o espaço certo e clique em aplicar (vira regra do dicionário).</p><div id="unrecBox" style="font-size:13px;color:var(--ink-faint)">Carregando…</div><button class="btn-sm" id="unrecApply" style="margin-top:10px">Aplicar mapeamentos</button></div>';
   h+='<div class="adminsec"><h3>Departamentos</h3>'+chipList("departamentos",A.departamentos)+'</div>';
   h+='<div class="adminsec"><h3>Pastores (nome + e-mail)</h3><p class="ahint">E-mails usados para avisos pastorais.</p>';
@@ -860,8 +863,13 @@ function adminHtml(){
   h+='<div style="display:flex;gap:10px;align-items:center;margin-top:6px"><button class="btn-primary" id="admSave">Salvar alterações</button><button class="btn-sm" id="admReload">Descartar</button></div>';
   return h;
 }
+function coresOpts(cur){
+  var C=[["","(padrão)"],["1","Lavanda"],["2","Sálvia"],["3","Uva"],["4","Flamingo"],["5","Banana"],["6","Tangerina"],["7","Pavão"],["8","Grafite"],["9","Mirtilo"],["10","Manjericão"],["11","Tomate"]];
+  return C.map(function(c){return '<option value="'+c[0]+'"'+(String(cur||"")===c[0]?" selected":"")+'>'+c[1]+'</option>';}).join("");
+}
 function collectAdmin(scope){
   scope.querySelectorAll("[data-src]").forEach(function(inp){ADMIN.fontes[inp.getAttribute("data-src")]=inp.value.trim();});
+  var cmap={};scope.querySelectorAll("[data-cor]").forEach(function(sel){if(sel.value)cmap[sel.getAttribute("data-cor")]=sel.value;});if(scope.querySelector("[data-cor]"))ADMIN.cores=cmap;
   scope.querySelectorAll("[data-cfg]").forEach(function(inp){ADMIN[inp.getAttribute("data-cfg")]=inp.value.trim();});
   var pmap={};scope.querySelectorAll("[data-prow]").forEach(function(inp){var i=inp.getAttribute("data-prow");(pmap[i]=pmap[i]||{})[inp.getAttribute("data-f")]=inp.value.trim();});
   if(Object.keys(pmap).length)ADMIN.pastores=Object.keys(pmap).map(function(i){return pmap[i];}).filter(function(p){return p.nome;});

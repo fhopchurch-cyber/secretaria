@@ -36,6 +36,8 @@ var ESPACOS_DEF = ['Auditório','Nave do Templo','Sala 1','Sala 2','Área Gourme
 var DEPARTS_DEF = ['RESET','XTRA','ROCKTES','KIDS','ENCONTRO DELAS','HOMENS','PROFÉTICO','FHOP SOCIAL','USHERS','SALA DE ORAÇÃO','LOUVOR','ADMINISTRATIVO','FINANCEIRO','HOSPITALIDADE','FHOP BOOKS','FHOP STORE','FHOP MUSIC','FHOP SCHOOL','FASCINAÇÃO','ESCOLAS','CENTRO TREINAMENTO','TECNOLOGIAS','COMUNICAÇÃO E MARKETING','PASTORAL','EVENTOS E CONFERÊNCIAS'];
 var PASTORES_DEF = ['Shalon','Camila','Cleber','Letícia','Vinicius','Emilaine','William','Nathalie','Hamilton','Brenon','Fernanda'].map(function(n){ return {nome:n, email:''}; });
 var RESP_DEF = [{papel:'Patrimônio', nome:'Wanderson', email:'wanderson@fhop.com'},{papel:'Audiovisual', nome:'Bruna', email:'brunafbatista@fhop.com'},{papel:'Secretaria', nome:'', email:''},{papel:'Departamento', nome:'', email:''}];
+// Cor do evento no Google Agenda por espaço (id "1".."11" das cores do Google).
+var CORES_DEF = {'Auditório':'9','Nave do Templo':'3','Sala 1':'1','Sala 2':'11','Área Gourmet':'7','Sala Verde/Estúdio':'2','Sala de reunião/atendimento':'6','Briefing':'4','Estacionamento':'8'};
 
 // Config ao vivo (defaults + o que o Admin salvou na Central). Cache por execução.
 var _CFG = null;
@@ -57,7 +59,8 @@ function cfg(){
     linkPainel: stored.linkPainel || '',
     painelUser: stored.painelUser || 'fhopchurch@fhop.com',
     painelPass: stored.painelPass || 'fhopchurch1234',
-    recoveryEmail: stored.recoveryEmail || 'fhopchurch@fhop.com'
+    recoveryEmail: stored.recoveryEmail || 'fhopchurch@fhop.com',
+    cores: Object.assign({}, CORES_DEF, stored.cores||{})
   };
   return _CFG;
 }
@@ -113,7 +116,16 @@ function editarEvento(eventId, campos){
   var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
   var ev = cal.getEventById(eventId);
   if(!ev) throw new Error('Evento não encontrado na agenda.');
-  if(campos.space != null) ev.setLocation(campos.space);
+  if(campos.space != null){
+    ev.setLocation(campos.space);
+    var cor = corEvento_(campos.space); if(cor){ try{ ev.setColor(cor); }catch(e){} }
+    // garante o espaço na descrição
+    try{
+      var d0 = ev.getDescription() || '';
+      var d1 = d0.replace(/^Espaço:.*$/mi, '').replace(/\n{2,}/g,'\n').trim();
+      ev.setDescription((campos.space ? ('Espaço: '+campos.space+'\n') : '') + d1);
+    }catch(e){}
+  }
   if(campos.date && campos.s && campos.e){
     ev.setTime(mkDate_(campos.date, campos.s), mkDate_(campos.date, campos.e));
   }
@@ -484,6 +496,28 @@ function sendMail_(to, subject, body){
   if(!to || !/@/.test(to)) return;
   try{ MailApp.sendEmail({ to: to, subject: subject, body: body, htmlBody: _htmlBody_(body) }); }catch(e){}
 }
+// Cor (id "1".."11") do evento conforme o espaço.
+function corEvento_(space){
+  if(!space) return '';
+  var m = cfg().cores || {}; return m[space] ? String(m[space]) : '';
+}
+// E-mails de Patrimônio/Audiovisual que devem entrar como CONVIDADOS quando há insumos daquela área.
+function emailsResponsaveisEnvolvidos_(req){
+  var out = []; if(!req.needs) return out;
+  var n = req.needs, textos = n.textos || {};
+  function temArea(area){
+    for(var cat in n){ if(cat==='obs'||cat==='textos') continue; var arr=n[cat]; if(!arr||!arr.length) continue; var low=String(cat).toLowerCase();
+      if(area==='patrim' && low.indexOf('patrim')>-1) return true;
+      if(area==='audio' && low.indexOf('audio')>-1) return true;
+    }
+    if(area==='patrim' && textos.patrim) return true;
+    if(area==='audio' && textos.av) return true;
+    return false;
+  }
+  if(temArea('patrim')){ var e1=respEmail_('patrim'); if(e1 && /@/.test(e1)) out.push(e1); }
+  if(temArea('audio')){ var e2=respEmail_('audio'); if(e2 && /@/.test(e2)) out.push(e2); }
+  return out;
+}
 function notificarResponsaveis_(req){
   var quando = fmtBR_(req.date) + ' ' + (req.s||'') + '–' + (req.e||'');
   var local = (req.spaces||[]).join(', ');
@@ -659,9 +693,13 @@ function aprovar(req){
   var quem = req.tagPastor ? ('Pastor: '+req.tagPastor) : (req.dept ? ('Depto: '+req.dept) : '');
   var titulo = req.title + (req.dept ? ' — '+req.dept : (req.tagPastor ? ' — '+req.tagPastor : ''));
   var local = (req.spaces||[]).join(', ');
-  var desc = [quem, req.solicitante?('Solicitante: '+req.solicitante):'', 'Origem: '+(req.origem||''), 'Aprovado via Central de Reservas'].filter(String).join('\n');
+  var desc = [quem, req.solicitante?('Solicitante: '+req.solicitante):'', local?('Espaço: '+local):'', 'Origem: '+(req.origem||''), 'Aprovado via Central de Reservas'].filter(String).join('\n');
   var opts = { location: local, description: desc };
-  if(req.email && /@/.test(req.email)){ opts.guests = req.email; opts.sendInvites = true; }
+  // convidados: solicitante + responsáveis de patrimônio/AV envolvidos
+  var guests = [];
+  if(req.email && /@/.test(req.email)) guests.push(req.email);
+  emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
+  if(guests.length){ opts.guests = guests.join(','); opts.sendInvites = true; }
   var ev;
   if(req.recorrencia && +req.recorrencia.vezes > 1){
     var rec = CalendarApp.newRecurrence().addWeeklyRule().times(+req.recorrencia.vezes); // toda semana, X vezes
@@ -669,6 +707,7 @@ function aprovar(req){
   } else {
     ev = cal.createEvent(titulo, start, end, opts);
   }
+  var cor = corEvento_((req.spaces||[])[0]); if(cor){ try{ ev.setColor(cor); }catch(e){} } // cor por espaço
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
   // avisa o solicitante que foi confirmado
