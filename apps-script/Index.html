@@ -154,6 +154,12 @@
     .refresh #addOcc{margin-left:0!important;width:100%}
     dialog{width:calc(100% - 16px)!important;max-width:none}
     .grid2{grid-template-columns:1fr!important}
+    .wrap{padding:12px 12px 60px}
+    table.month td{height:64px}
+    .btn-sm{padding:8px 11px;min-height:34px}
+    .rmeta{flex-wrap:wrap}
+    .pxrow{flex-direction:column} .pxrow input{width:100%}
+    details.adminsec>summary{font-size:14px}
   }
 </style>
 </head>
@@ -328,9 +334,10 @@ function serverAct(fnName, arg, okMsg){
     [fnName](arg);
 }
 // ações otimistas: muda a tela na hora e grava por trás (sem reler tudo)
-function _bg(fn,arg){google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();})[fn](arg);}
+function _bg(fn,arg,arg2){google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();})[fn](arg,arg2);}
 function doAprovar(k){var r=REQ[k];if(!r)return;r.status="aprovado";render();toast("✓ Aprovado — criando na agenda…");_bg("aprovar",r);}
-function doRecusar(k){var r=REQ[k];if(!r)return;r.status="recusado";render();toast("✕ Recusado");_bg("recusar",r);}
+function doRecusar(k){var r=REQ[k];if(!r)return;var motivo=prompt("Motivo da recusa (opcional — vai no e-mail ao solicitante):","");if(motivo===null)return;r.status="recusado";render();toast("✕ Recusado"+(r.email?" · avisando por e-mail":""));_bg("recusar",r,motivo);}
+function doMigrarReserva(k){var p=PAS[k];if(!p)return;if(!confirm('Voltar este atendimento para a aba Solicitações (como reserva)?'))return;p.status="excluido";render();BUSY=true;toast("Voltando para Solicitações…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("→ Movido para Solicitações");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);loadData();}).migrarParaReserva(p);}
 function doDesfazer(k){var r=REQ[k];if(!r)return;r.status="pendente";render();toast("↩ Desfeito");_bg("desfazer",r);}
 function doExcluir(k){var it=REQ[k]||PAS[k];if(!it)return;it.status="excluido";render();toast("🗑 Removido");_bg("excluir",it);}
 function doMigrar(k){var r=REQ[k];if(!r)return;if(!confirm('Mover esta solicitação para a aba Atendimento? Você poderá detalhar e encaminhar ao pastor.'))return;r.status="excluido";render();BUSY=true;toast("Migrando para atendimento…");google.script.run.withSuccessHandler(function(){BUSY=false;toast("→ Movido para Atendimento");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);loadData();}).migrarParaAtendimento(r);}
@@ -397,6 +404,8 @@ function wireActions(scope){
   scope.querySelectorAll("[data-excluir]").forEach(function(b){b.onclick=function(){doExcluir(b.getAttribute("data-excluir"));};});
   scope.querySelectorAll("[data-editar]").forEach(function(b){b.onclick=function(){openEdit(b.getAttribute("data-editar"));};});
   scope.querySelectorAll("[data-migrar]").forEach(function(b){b.onclick=function(){doMigrar(b.getAttribute("data-migrar"));};});
+  scope.querySelectorAll("[data-migrarres]").forEach(function(b){b.onclick=function(){doMigrarReserva(b.getAttribute("data-migrarres"));};});
+  scope.querySelectorAll("[data-printday]").forEach(function(b){b.onclick=function(){printDay(b.getAttribute("data-printday"));};});
   scope.querySelectorAll("[data-enc2]").forEach(function(b){b.onclick=function(){openEnc(b.getAttribute("data-enc2"));};});
   scope.querySelectorAll("[data-editpas]").forEach(function(b){b.onclick=function(){openPatEdit(b.getAttribute("data-editpas"));};});
   scope.querySelectorAll("[data-evtedit]").forEach(function(b){b.onclick=function(){openEvtEdit(b.getAttribute("data-evtedit"),b.getAttribute("data-evttitle"),b.getAttribute("data-evtcur"),b.getAttribute("data-evtdate"),b.getAttribute("data-evts"),b.getAttribute("data-evte"));};});
@@ -716,7 +725,7 @@ function viewBar(label){
 }
 function dayDetailHtml(dk){
   var dt=parseD(dk), evs=evAll(dk);
-  var h='<div class="daydetail"><h3>'+DIAS[dt.getDay()]+', '+dt.getDate()+' de '+MESES[dt.getMonth()]+'</h3>';
+  var h='<div class="daydetail"><h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+DIAS[dt.getDay()]+', '+dt.getDate()+' de '+MESES[dt.getMonth()]+(evs.length?'<button class="btn-sm" data-printday="'+esc(dk)+'" style="margin-left:auto">🖨 Imprimir</button>':'')+'</h3>';
   if(!evs.length){ h+='<div class="dd-empty">Nenhuma reserva neste dia.</div></div>'; return h; }
   h+='<div class="rows">';
   evs.forEach(function(e){
@@ -727,6 +736,15 @@ function dayDetailHtml(dk){
     h+='<div class="row plain"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+badge+spaceChip+'</span></div><span class="rwhen mono">'+esc(e.s)+'–'+esc(e.e)+'</span>'+editBtn+delBtn+'</div>';
   });
   return h+'</div></div>';
+}
+function printDay(dk){
+  var dt=parseD(dk),evs=evAll(dk).slice().sort(function(a,b){return (a.s||"").localeCompare(b.s||"");});
+  var title=DIAS[dt.getDay()]+", "+dt.getDate()+" de "+MESES[dt.getMonth()]+" de "+dt.getFullYear();
+  var rows=evs.map(function(e){var tp=e.t==="conf"?"Confirmado":(e.t==="hit"?"Conflito":"Pendente");return '<tr><td>'+esc(e.s||"")+'–'+esc(e.e||"")+'</td><td>'+esc(e.space||"—")+'</td><td>'+esc(e.title||"")+'</td><td>'+tp+'</td></tr>';}).join("");
+  var w=window.open("","_blank");
+  if(!w){toast("Permita pop-ups para imprimir",true);return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Agenda '+esc(title)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:19px;margin:0 0 2px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #ddd}th{background:#f2f2f2;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em}td:first-child{white-space:nowrap;font-variant-numeric:tabular-nums}</style></head><body><h1>FHOP · Agenda do dia</h1><div class="sub">'+esc(title)+' — '+evs.length+' item(ns)</div><table><thead><tr><th>Horário</th><th>Espaço</th><th>Evento</th><th>Situação</th></tr></thead><tbody>'+rows+'</tbody></table><scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
+  w.document.close();
 }
 
 function monthHtml(){
@@ -855,7 +873,7 @@ function pastoralHtml(){
     var chip=isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>';
     var acts=isEnc
       ? '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
-      : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
+      : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-migrarres="'+esc(p.key)+'" title="Era uma reserva? Volta para a aba Solicitações.">→ Reserva</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
     return '<div class="row'+(isEnc?' aprovado':'')+'"><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
   }).join("")+'</div>';
 }

@@ -206,7 +206,7 @@ function _apiMap_(){
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento,
-    migrarParaAtendimento:migrarParaAtendimento
+    migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva
   };
 }
 function apiCall_(fn, args, token){
@@ -827,17 +827,38 @@ function aprovar(req){
   return { ok:true, eventId: ev.getId() };
 }
 
-/** Recusar: marca como recusado (não cria evento) + avisa o solicitante. */
-function recusar(req){
+/** Recusar: marca como recusado (não cria evento) + avisa o solicitante (com motivo opcional). */
+function recusar(req, motivo){
   if(!req || !req.key) throw new Error('Pedido inválido.');
+  motivo = (motivo && String(motivo).trim()) ? String(motivo).trim() : '';
   upsertEstado_(req.key, { status:'recusado', titulo:req.title||'' });
   if(req.email && /@/.test(req.email)){
     sendMail_(req.email, 'Reserva não confirmada: '+req.title,
       'Olá'+(req.solicitante?(' '+req.solicitante):'')+',\n\nInfelizmente sua reserva NÃO pôde ser confirmada.\n\n' +
-      'Evento: '+req.title+'\nData: '+fmtBR_(req.date)+'\nHorário: '+(req.s||'')+'–'+(req.e||'')+'\nLocal: '+(req.spaces||[]).join(', ')+'\n\n' +
-      'Fale com a secretaria para verificar outra data/horário.\n\n— Central de Reservas FHOP');
+      'Evento: '+req.title+'\nData: '+fmtBR_(req.date)+'\nHorário: '+(req.s||'')+'–'+(req.e||'')+'\nLocal: '+(req.spaces||[]).join(', ')+'\n' +
+      (motivo ? ('\nMotivo: '+motivo+'\n') : '') +
+      '\nFale com a secretaria para verificar outra data/horário.\n\n— Central de Reservas FHOP');
   }
   return { ok:true };
+}
+/** Converte um ATENDIMENTO de volta em SOLICITAÇÃO de reserva (desfaz uma migração feita por engano). */
+function migrarParaReserva(pas){
+  if(!pas || !pas.key) throw new Error('Atendimento inválido.');
+  var novo = {
+    title: pas.motivo || pas.nome || 'Reserva',
+    tipo: 'reserva',
+    dept: '',
+    tagPastor: pas.tagPastor || '',
+    solicitante: pas.nome || pas.solicitante || '',
+    email: pas.email || '',
+    date: pas.date || '', s: pas.s || '', e: pas.e || '',
+    spaces: pas.spaces || [],
+    needs: (pas.telefone ? { telefone: pas.telefone } : null)
+  };
+  var res = enviarReserva(novo);
+  excluir(pas);
+  invalidarCache_();
+  return { ok:true, key: res.key };
 }
 
 /** Remove da agenda um evento único OU uma série recorrente, pelo id. */

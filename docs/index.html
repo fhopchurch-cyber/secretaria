@@ -10,7 +10,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento"];
+  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -281,6 +281,7 @@ if(/[?&]login=1/.test(location.search)) openLogin();
 
 id("form").addEventListener("submit",function(e){
   e.preventDefault();
+  if(window._sending)return;   // evita envio duplicado (clique duplo)
   var name=id("rName").value.trim(),email=id("rEmail").value.trim(),title=id("rTitle").value.trim();
   var date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
   if(!name||!title||!date){alert("Preencha nome, evento e data.");return;}
@@ -293,13 +294,14 @@ id("form").addEventListener("submit",function(e){
   if(extras.length)needs.extras=extras;
   var conf=id("banner").classList.contains("bad");
   var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
-  id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
+  window._sending=true;id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
   google.script.run
     .withSuccessHandler(function(){
+      window._sending=false;
       id("successMsg").innerHTML=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
       id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
     })
-    .withFailureHandler(function(err){id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));})
+    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));})
     .enviarReserva(data);
 });
 id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
