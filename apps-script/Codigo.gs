@@ -106,8 +106,9 @@ function doGet(e){
   var p = pr.p || '';
   var autorizado = false, loginFalhou = false;
   if(p === 'painel'){
-    if(validPainelToken_(pr.k)) autorizado = true;                 // já tem token (refresh)
-    else if(pr.pw != null){                                        // login por formulário (GET no topo)
+    if(validPainelToken_(pr.k)) autorizado = true;                 // token derivado no navegador (senha não trafega)
+    else if(pr.k != null && pr.k !== '') loginFalhou = true;        // token veio, mas não confere
+    else if(pr.pw != null){                                        // fallback antigo (senha no form)
       var okUser = String(pr.user||'').trim().toLowerCase() === String(cfg().painelUser).toLowerCase();
       var okPass = String(pr.pw) === String(cfg().painelPass);
       autorizado = okUser && okPass;
@@ -256,7 +257,7 @@ function _computeDados_(){
       var tp = str(rw[cs.tipo]) || 'reserva';
       if(tp === 'atendimento'){
         // atendimento lançado no painel → vai para a aba Atendimentos (motivo guardado na coluna dept)
-        out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, origem: 'Lançado no painel' });
+        out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]), spaces: splitSpaces(rw[cs.spaces]), origem: 'Lançado no painel' });
         continue;
       }
       out.requests.push({
@@ -327,8 +328,12 @@ function _computeDados_(){
   });
   out.pastoral.forEach(function(p){
     var st = estado[p.key];
-    if(st){ p.status = st.status || 'pendente'; p.pastor = st.pastor; }
-    else p.status = 'pendente';
+    if(st){ p.status = st.status || 'pendente'; p.pastor = st.pastor;
+      if(st.override){ var o = st.override;
+        ['nome','motivo','telefone','email','disp'].forEach(function(f){ if(o[f]!=null && o[f]!=='') p[f] = o[f]; });
+        p.editado = true;
+      }
+    } else p.status = 'pendente';
   });
 
   return out;
@@ -509,6 +514,26 @@ function getAgendaMes(ano, mes){
   return out;
 }
 
+/** Lista os textos de espaço da agenda que o dicionário NÃO reconhece (para mapear no Admin). */
+function getEspacosNaoReconhecidos(){
+  var out = {};
+  try{
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+    var hoje = new Date();
+    var evs = cal.getEvents(new Date(hoje.getFullYear(), hoje.getMonth()-3, 1), new Date(hoje.getFullYear(), hoje.getMonth()+4, 1));
+    for(var i=0;i<evs.length;i++){ var ev = evs[i];
+      if(norm([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '))) continue; // já reconhecido
+      var sample = str(ev.getLocation()) || str(ev.getTitle());
+      if(!sample) continue;
+      var key = sample.toLowerCase().trim();
+      if(!out[key]) out[key] = { sample: sample, count: 0 };
+      out[key].count++;
+    }
+  }catch(e){}
+  return Object.keys(out).map(function(k){ return out[k]; })
+    .sort(function(a,b){ return b.count - a.count; }).slice(0, 40);
+}
+
 /** Ocupação confirmada (só espaço+horário, sem nomes) para a página pública checar conflito. */
 function getOcupacao(){
   var out = [];
@@ -576,13 +601,26 @@ function aprovar(req){
   var ev = cal.createEvent(titulo, start, end, opts);
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
+  // avisa o solicitante que foi confirmado
+  if(req.email && /@/.test(req.email)){
+    sendMail_(req.email, 'Reserva confirmada: '+req.title,
+      'Olá'+(req.solicitante?(' '+req.solicitante):'')+',\n\nSua reserva foi CONFIRMADA.\n\n' +
+      'Evento: '+req.title+'\nData: '+fmtBR_(req.date)+'\nHorário: '+(req.s||'')+'–'+(req.e||'')+'\nLocal: '+local+'\n\n' +
+      'Você também recebeu o convite na sua agenda.\n\n— Central de Reservas FHOP');
+  }
   return { ok:true, eventId: ev.getId() };
 }
 
-/** Recusar: marca como recusado (não cria evento). */
+/** Recusar: marca como recusado (não cria evento) + avisa o solicitante. */
 function recusar(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
   upsertEstado_(req.key, { status:'recusado', titulo:req.title||'' });
+  if(req.email && /@/.test(req.email)){
+    sendMail_(req.email, 'Reserva não confirmada: '+req.title,
+      'Olá'+(req.solicitante?(' '+req.solicitante):'')+',\n\nInfelizmente sua reserva NÃO pôde ser confirmada.\n\n' +
+      'Evento: '+req.title+'\nData: '+fmtBR_(req.date)+'\nHorário: '+(req.s||'')+'–'+(req.e||'')+'\nLocal: '+(req.spaces||[]).join(', ')+'\n\n' +
+      'Fale com a secretaria para verificar outra data/horário.\n\n— Central de Reservas FHOP');
+  }
   return { ok:true };
 }
 
@@ -629,6 +667,13 @@ function desfazer(req){
 function editar(req, campos){
   if(!req || !req.key || !campos) throw new Error('Dados inválidos.');
   upsertEstado_(req.key, { override: campos });
+  return { ok:true };
+}
+
+/** Editar um atendimento (nome/motivo/telefone/email/disp) — guarda como override no estado. */
+function editarAtendimento(key, campos){
+  if(!key || !campos) throw new Error('Dados inválidos.');
+  upsertEstado_(key, { override: campos });
   return { ok:true };
 }
 

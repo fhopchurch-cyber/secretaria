@@ -113,10 +113,12 @@
   <dialog id="loginDialog" style="border:0;border-radius:16px;padding:0;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <form id="loginForm" method="get" action="" target="_top" style="padding:22px 22px 18px">
       <input type="hidden" name="p" value="painel">
+      <input type="hidden" id="lgToken" name="k" value="">
+      <input type="hidden" id="lgUserH" name="user" value="">
       <h2 style="margin:0 0 4px;font-size:20px">Entrar</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--ink-faint)">Acesso da secretaria à Central de Reservas.</p>
-      <div class="field" style="margin-bottom:12px"><label for="lgEmail">E-mail</label><input id="lgEmail" name="user" type="email" autocomplete="username" placeholder="email@email.com" required></div>
-      <div class="field" style="margin-bottom:14px"><label for="lgPass">Senha</label><input id="lgPass" name="pw" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+      <div class="field" style="margin-bottom:12px"><label for="lgEmail">E-mail</label><input id="lgEmail" type="email" autocomplete="username" placeholder="email@email.com" required></div>
+      <div class="field" style="margin-bottom:14px"><label for="lgPass">Senha</label><input id="lgPass" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
       <p id="lgErr" style="display:none;margin:0 0 12px;font-size:13px;color:#c0392b;font-weight:600"></p>
       <p id="lgMsg" style="display:none;margin:0 0 12px;font-size:13px;color:#1e8449;font-weight:600"></p>
       <div style="display:flex;gap:10px;justify-content:space-between;align-items:center">
@@ -192,8 +194,23 @@ id("lgForgot").onclick=function(){lgErr("");lgMsg("");var b=id("lgForgot");b.dis
     .withSuccessHandler(function(r){b.disabled=false;b.textContent="Esqueci a senha";lgMsg("Enviamos os dados de acesso para "+((r&&r.hint)||"o e-mail da secretaria")+".");})
     .withFailureHandler(function(err){b.disabled=false;b.textContent="Esqueci a senha";lgErr((err&&err.message)?err.message:"Não foi possível enviar.");})
     .recuperarSenha();};
+// Deriva o token (SHA-256) no navegador — a senha em texto NUNCA vai na URL.
+async function computeToken(user,pass){
+  var data=new TextEncoder().encode("fhop::"+String(user).toLowerCase()+"::"+String(pass));
+  var buf=await crypto.subtle.digest("SHA-256",data);
+  var b=new Uint8Array(buf),bin="";for(var i=0;i<b.length;i++)bin+=String.fromCharCode(b[i]);
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_");
+}
+async function refreshToken(){
+  var u=id("lgEmail").value.trim(),p=id("lgPass").value;
+  id("lgUserH").value=u;
+  try{ id("lgToken").value=(u&&p)?await computeToken(u,p):""; }catch(e){ id("lgToken").value=""; }
+}
+id("lgEmail").addEventListener("input",refreshToken);
+id("lgPass").addEventListener("input",refreshToken);
 id("loginForm").addEventListener("submit",function(e){
   if(!id("loginForm").getAttribute("action")){ e.preventDefault(); lgErr("Carregando… tente em 1 segundo."); return; }
+  if(!id("lgToken").value){ e.preventDefault(); lgErr("Preencha e-mail e senha."); refreshToken(); return; }
   var btn=id("lgSubmit");btn.disabled=true;btn.textContent="Entrando…"; // deixa o GET de topo seguir
 });
 // Se o login falhou (voltou com erro do servidor), reabre o diálogo já avisando.
