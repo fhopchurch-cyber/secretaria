@@ -416,6 +416,8 @@ function wireActions(scope){
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
   var pes=scope.querySelector("#pedSearch");
   if(pes)pes.oninput=function(){window._pedQ=pes.value;var bd=document.getElementById("body");bd.innerHTML=pedidosHtml();wireActions(bd);var n=document.getElementById("pedSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
+  var pso=scope.querySelector("#pedSort");
+  if(pso)pso.onchange=function(){window._pedSort=pso.value;var bd=document.getElementById("body");bd.innerHTML=pedidosHtml();wireActions(bd);};
   wireBulk(scope);
 }
 function bulkBar(){
@@ -831,12 +833,14 @@ function reservasHtml(){
   }).join("")+'</div>';
 }
 function pedidosHtml(){
-  var pend=DATA.requests.filter(function(r){return r.status==="pendente";}).sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  var ord=window._pedSort||"desc";
+  var pend=DATA.requests.filter(function(r){return r.status==="pendente";}).sort(function(a,b){var c=(a.date||"").localeCompare(b.date||"")||(a.s||"").localeCompare(b.s||"");return ord==="asc"?c:-c;});
   var apr=DATA.requests.filter(function(r){return r.status==="aprovado";}).length;
   var rec=DATA.requests.filter(function(r){return r.status==="recusado";}).length;
   var summ='<p class="summ">'+pend.length+' pendente(s) · '+apr+' aprovado(s) · '+rec+' recusado(s). Aprovar cria o evento na agenda e convida o e-mail do solicitante.</p>';
   var q=(window._pedQ||"").toLowerCase();
-  var bar='<div class="toolbar"><input id="pedSearch" placeholder="Filtrar por evento, depto, pessoa, espaço…" value="'+esc(window._pedQ||"")+'" style="flex:1;max-width:360px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></div>';
+  var selSt='font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)';
+  var bar='<div class="toolbar"><input id="pedSearch" placeholder="Filtrar por evento, depto, pessoa, espaço…" value="'+esc(window._pedQ||"")+'" style="flex:1;max-width:360px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><select id="pedSort" style="'+selSt+'"><option value="desc"'+(ord==="desc"?" selected":"")+'>Data ↓ (mais recente)</option><option value="asc"'+(ord==="asc"?" selected":"")+'>Data ↑ (mais antiga)</option></select></div>';
   if(q){ pend=pend.filter(function(r){return ((r.title||"")+" "+(r.dept||"")+" "+(r.tagPastor||"")+" "+(r.solicitante||"")+" "+(r.spaces||[]).join(" ")).toLowerCase().indexOf(q)>-1;}); }
   if(!pend.length)return summ+bar+'<div class="empty">Nenhuma solicitação'+(q?" para esse filtro":" pendente")+'.</div>';
   return summ+bar+bulkBar()+'<div class="rows">'+pend.map(function(r){
