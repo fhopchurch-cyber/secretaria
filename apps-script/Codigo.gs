@@ -216,10 +216,10 @@ function editarEvento(eventId, campos){
  * API (para o site hospedado no GitHub Pages chamar por fetch).
  * Responde JSON. Funções sensíveis exigem token (login por senha).
  * ========================================================= */
-var API_PUBLIC = { getOcupacao:1, enviarReserva:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1 };
+var API_PUBLIC = { getOcupacao:1, enviarReserva:1, enviarReservaDatas:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1 };
 function _apiMap_(){
   return {
-    getOcupacao:getOcupacao, enviarReserva:enviarReserva, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl, getPagina:getPagina,
+    getOcupacao:getOcupacao, enviarReserva:enviarReserva, enviarReservaDatas:enviarReservaDatas, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl, getPagina:getPagina,
     getDados:getDados, getConfig:getConfig, saveConfig:saveConfig,
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
@@ -404,6 +404,7 @@ function _computeDados_(){
         out.pastoral.push({ key: String(rw[cs.key]), nome: str(rw[cs.title]), motivo: str(rw[cs.dept]), tagPastor: str(rw[cs.tagPastor]), disp: '', date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]), spaces: splitSpaces(rw[cs.spaces]), solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]), telefone: (_nd && _nd.telefone) ? String(_nd.telefone) : '', origem: str(rw[cs.dept]) ? 'Lançado no painel' : 'Migrado de solicitação' });
         continue;
       }
+      var _needs = (function(){ try{ return rw[cs.needs] ? JSON.parse(rw[cs.needs]) : null; }catch(e){ return null; } })();
       out.requests.push({
         key: String(rw[cs.key]),
         origem:'Reserva online', tipo: tp,
@@ -411,7 +412,8 @@ function _computeDados_(){
         solicitante: str(rw[cs.solicitante]), email: str(rw[cs.email]),
         date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
         spaces: splitSpaces(rw[cs.spaces]),
-        needs: (function(){ try{ return rw[cs.needs] ? JSON.parse(rw[cs.needs]) : null; }catch(e){ return null; } })()
+        needs: _needs,
+        recorrencia: (_needs && _needs.recorrencia) ? _needs.recorrencia : null   // vira série ao aprovar
       });
     }
   }catch(err){ out.erros.push('Reservas online: '+err); }
@@ -525,6 +527,14 @@ function enviarReserva(data){
     (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
   invalidarCache_();
   return { ok:true, key:key };
+}
+
+/** Página pública: reserva em VÁRIAS datas específicas → cria uma solicitação (pendente) por data. */
+function enviarReservaDatas(data, datas){
+  if(!datas || !datas.length) throw new Error('Escolha ao menos uma data.');
+  var n = 0;
+  datas.forEach(function(dt){ if(!dt) return; var d2 = Object.assign({}, data); d2.date = dt; if(d2.needs) delete d2.needs.recorrencia; enviarReserva(d2); n++; });
+  return { ok:true, n:n };
 }
 
 /** Cria a MESMA ocorrência em várias datas específicas (cada uma vira um evento). */

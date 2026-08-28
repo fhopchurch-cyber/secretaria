@@ -352,8 +352,10 @@ function needsHtml(n){
     if(n.obs)h+=drow("Outras obs.",n.obs);
   }
   if(n.extras&&n.extras.length)n.extras.forEach(function(x){h+=drow(x.label||"Campo",x.valor||"");});
+  if(n.recorrencia)h+=drow("Recorrência",recorrLabel(n.recorrencia));
   return h;
 }
+function recorrLabel(rc){if(!rc)return"";var m={diaria:"Diariamente",semanal:"Semanalmente",quinzenal:"A cada 2 semanas",mensal:"Mensalmente"};return (m[rc.tipo]||rc.tipo||"")+(rc.vezes?(" × "+rc.vezes+" vezes"):"");}
 function statusLabel(s){ if(s==="aprovado")return"✓ Aprovado"; if(s==="recusado")return"✕ Recusado"; if(s==="encaminhado")return"✓ Encaminhado"; if(s==="excluido")return"Removido"; return"Aguardando"; }
 function openDet(key){
   var r=REQ[key], p=(!r?PAS[key]:null), h="", titulo="";

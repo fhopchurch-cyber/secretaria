@@ -10,7 +10,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -379,8 +379,10 @@ function needsHtml(n){
     if(n.obs)h+=drow("Outras obs.",n.obs);
   }
   if(n.extras&&n.extras.length)n.extras.forEach(function(x){h+=drow(x.label||"Campo",x.valor||"");});
+  if(n.recorrencia)h+=drow("Recorrência",recorrLabel(n.recorrencia));
   return h;
 }
+function recorrLabel(rc){if(!rc)return"";var m={diaria:"Diariamente",semanal:"Semanalmente",quinzenal:"A cada 2 semanas",mensal:"Mensalmente"};return (m[rc.tipo]||rc.tipo||"")+(rc.vezes?(" × "+rc.vezes+" vezes"):"");}
 function statusLabel(s){ if(s==="aprovado")return"✓ Aprovado"; if(s==="recusado")return"✕ Recusado"; if(s==="encaminhado")return"✓ Encaminhado"; if(s==="excluido")return"Removido"; return"Aguardando"; }
 function openDet(key){
   var r=REQ[key], p=(!r?PAS[key]:null), h="", titulo="";

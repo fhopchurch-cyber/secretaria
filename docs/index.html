@@ -10,7 +10,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -109,10 +109,22 @@ var google={script:{}};
         <select id="rDept"></select>
       </div>
       <div class="grid2">
-        <div class="field"><label for="rDate">Data</label><input id="rDate" type="date" required></div>
+        <div class="field"><label for="rDate">Data</label><input id="rDate" type="date"></div>
         <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="rStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="rEnd" type="time" value="21:00" style="flex:1"></div></div>
       </div>
       <div class="field"><label>Espaço(s) desejado(s)</label><div class="spacegrid" id="rSpaceGrid"></div></div>
+
+      <div class="field"><label for="rRepeat">Repetir</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <select id="rRepeat" style="flex:1;min-width:150px"><option value="nao">Não repete</option><option value="diaria">Diariamente</option><option value="semanal">Semanalmente</option><option value="quinzenal">A cada 2 semanas</option><option value="mensal">Mensalmente</option><option value="datas">Datas específicas</option></select>
+          <span id="rRepeatWeeksWrap" style="display:none;align-items:center;gap:6px;font-size:13px">por <input id="rRepeatWeeks" type="number" min="2" max="60" value="4" style="width:70px"> vezes</span>
+        </div>
+        <div id="rDatasWrap" style="display:none;margin-top:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="rDataAdd" type="date" style="flex:0 0 auto"><button type="button" id="rDataAddBtn" class="btn-ghost" style="padding:8px 14px">+ Adicionar data</button></div>
+          <div id="rDatasList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        </div>
+        <p id="rRepeatHint" style="display:none;margin:6px 0 0;font-size:12px;color:var(--ink-faint)"></p>
+      </div>
 
       <div id="customFields"></div>
 
@@ -274,7 +286,10 @@ id("form").addEventListener("submit",function(e){
   if(window._sending)return;   // evita envio duplicado (clique duplo)
   var name=id("rName").value.trim(),email=id("rEmail").value.trim(),title=id("rTitle").value.trim();
   var date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
-  if(!name||!title||!date){alert("Preencha nome, evento e data.");return;}
+  var rep=id("rRepeat").value,weeks=Math.max(2,parseInt(id("rRepeatWeeks").value,10)||2);
+  if(!name||!title){alert("Preencha nome e evento.");return;}
+  if(rep!=="datas"&&!date){alert("Preencha a data.");return;}
+  if(rep==="datas"&&!rDatas.length){alert("Adicione ao menos uma data em “Datas específicas”.");return;}
   if(!sp.length){alert("Escolha ao menos um espaço.");return;}
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
   var extras=collectExtras();
@@ -287,19 +302,27 @@ id("form").addEventListener("submit",function(e){
   });
   if(grupos.length)needs.groups=grupos;
   if(extras.length)needs.extras=extras;
+  if(rep!=="nao"&&rep!=="datas"&&weeks>1)needs.recorrencia={tipo:rep,vezes:weeks};
   var conf=id("banner").classList.contains("bad");
-  var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
+  var baseDate=(rep==="datas")?(rDatas.slice().sort()[0]||date):date;
+  var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:baseDate,s:s,e:en,spaces:sp,needs:needs};
   window._sending=true;id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
-  google.script.run
+  var run=google.script.run
     .withSuccessHandler(function(){
       window._sending=false;
       id("successMsg").innerHTML=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
       id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
     })
-    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));})
-    .enviarReserva(data);
+    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));});
+  if(rep==="datas")run.enviarReservaDatas(data,rDatas.slice());
+  else run.enviarReserva(data);
 });
-id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
+var rDatas=[];
+function fmtBRd(iso){var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+"/"+m[2]+"/"+m[1]):iso;}
+function renderRDatas(){var box=id("rDatasList");if(!box)return;box.innerHTML=rDatas.slice().sort().map(function(d,i){return '<span style="display:inline-flex;gap:6px;align-items:center;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px">'+fmtBRd(d)+'<button type="button" data-rm="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rm]").forEach(function(b){b.onclick=function(){var a=rDatas.slice().sort();a.splice(+b.getAttribute("data-rm"),1);rDatas=a;renderRDatas();};});}
+id("rDataAddBtn").onclick=function(){var v=id("rDataAdd").value;if(!v){alert("Escolha uma data");return;}if(rDatas.indexOf(v)<0)rDatas.push(v);id("rDataAdd").value="";renderRDatas();};
+id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"Cada data vira uma solicitação. A secretaria confirma.":"A secretaria confirma e a série vira eventos na agenda.";if(datas)renderRDatas();};
+id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";rDatas=[];id("rRepeatWeeksWrap").style.display="none";id("rDatasWrap").style.display="none";id("rRepeatHint").style.display="none";renderRDatas();id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
 </script>
 </body>
 </html>
