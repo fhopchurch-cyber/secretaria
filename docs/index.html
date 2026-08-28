@@ -119,18 +119,7 @@ var google={script:{}};
       <div class="banner" id="banner"></div>
 
       <details open id="needsBox"><summary>Precisa de algo? (cadeiras, café, som…)</summary>
-        <div class="nh" id="nhPatrim" style="margin-top:6px">Patrimônio</div>
-        <div class="needs" id="gridPatrim"></div>
-        <div class="field" style="margin:8px 0 4px"><label for="rPatrim" id="lblPatrim">Patrimônio — descreva</label><textarea id="rPatrim" rows="2" placeholder="Ex.: 50 cadeiras, 4 mesas, 1 púlpito…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
-
-        <div class="nh" id="nhAV" style="margin-top:12px">Audiovisual</div>
-        <div class="needs" id="gridAV"></div>
-        <div class="field" style="margin:8px 0 4px"><label for="rAV" id="lblAV">Audiovisual — descreva</label><textarea id="rAV" rows="2" placeholder="Ex.: 2 microfones, som ambiente, iluminação…" style="width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
-
-        <div class="nh" id="nhSec" style="margin-top:12px">Secretaria (café/insumos)</div>
-        <div class="needs" id="gridSec"></div>
-
-        <div class="field" style="margin:10px 0 12px"><label for="rObs">Outras observações</label><input id="rObs" type="text" placeholder="Ex.: café para 30 pessoas"></div>
+        <div id="needsGroups"></div>
       </details>
 
       <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
@@ -178,17 +167,18 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
 var rDept=id("rDept"),rSpaceGrid=id("rSpaceGrid");
 DEPARTS.forEach(function(d){rDept.add(new Option(d,d));});
 CANON.forEach(function(sp){rSpaceGrid.insertAdjacentHTML("beforeend",'<label><input type="checkbox" value="'+esc(sp)+'"> '+esc(sp)+'</label>');});
-// data-cat FIXO (Patrimônio/Audiovisual/Secretaria) para o roteamento de e-mail não depender do rótulo.
-function buildNeeds(gridId,catCanon,itens){var g=id(gridId);g.innerHTML="";(itens||[]).forEach(function(it){g.insertAdjacentHTML("beforeend",'<label><input type="checkbox" data-cat="'+esc(catCanon)+'" value="'+esc(it)+'"> '+esc(it)+'</label>');});}
-function renderNeeds(ins){
-  buildNeeds("gridPatrim","Patrimônio",ins.patrim.itens);
-  buildNeeds("gridAV","Audiovisual",ins.av.itens);
-  buildNeeds("gridSec","Secretaria",ins.sec.itens);
-  id("nhPatrim").textContent=ins.patrim.rotulo; id("lblPatrim").textContent=ins.patrim.rotulo+" — descreva";
-  id("nhAV").textContent=ins.av.rotulo; id("lblAV").textContent=ins.av.rotulo+" — descreva";
-  id("nhSec").textContent=ins.sec.rotulo;
+// Necessidades DINÂMICAS: cada grupo (rótulo + itens + responsável) vem do config e roteia por `resp`.
+var NEEDS_DEF=[{rotulo:"Patrimônio",resp:"Patrimônio",texto:true,itens:NEEDS["Patrimônio"]},{rotulo:"Audiovisual",resp:"Audiovisual",texto:true,itens:NEEDS["Audiovisual"]},{rotulo:"Secretaria (café/insumos)",resp:"Secretaria",texto:true,itens:NEEDS["Secretaria (café/insumos)"]}];
+var nTaSt='width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical';
+function renderNeeds(grupos){
+  var box=id("needsGroups");box.innerHTML="";
+  (grupos||[]).forEach(function(g,i){
+    var itensHtml=(g.itens||[]).map(function(it){return '<label><input type="checkbox" value="'+esc(it)+'"> '+esc(it)+'</label>';}).join("");
+    var txtHtml=(g.texto!==false)?'<div class="field" style="margin:8px 0 4px"><label>'+esc(g.rotulo)+' — descreva</label><textarea rows="2" style="'+nTaSt+'"></textarea></div>':'';
+    box.insertAdjacentHTML("beforeend",'<div data-group="'+i+'" data-resp="'+esc(g.resp||"")+'" data-rotulo="'+esc(g.rotulo||"")+'" style="margin-bottom:6px"><div class="nh" style="margin-top:'+(i?12:6)+'px">'+esc(g.rotulo)+'</div><div class="needs">'+itensHtml+'</div>'+txtHtml+'</div>');
+  });
 }
-renderNeeds({patrim:{rotulo:"Patrimônio",itens:NEEDS["Patrimônio"]},av:{rotulo:"Audiovisual",itens:NEEDS["Audiovisual"]},sec:{rotulo:"Secretaria (café/insumos)",itens:NEEDS["Secretaria (café/insumos)"]}});
+renderNeeds(NEEDS_DEF);
 var cxSt='width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)';
 function renderCampos(campos){
   var box=id("customFields");box.innerHTML="";
@@ -289,8 +279,13 @@ id("form").addEventListener("submit",function(e){
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
   var extras=collectExtras();
   if(extras===null){alert("Preencha os campos obrigatórios (marcados com *).");return;}
-  var needs={obs:id("rObs").value.trim(),textos:{patrim:id("rPatrim").value.trim(),av:id("rAV").value.trim()}};
-  id("needsBox").querySelectorAll("input:checked").forEach(function(c){var cat=c.getAttribute("data-cat");(needs[cat]=needs[cat]||[]).push(c.value);});
+  var needs={},grupos=[];
+  id("needsGroups").querySelectorAll("[data-group]").forEach(function(sec){
+    var itens=[];sec.querySelectorAll('input[type=checkbox]:checked').forEach(function(c){itens.push(c.value);});
+    var ta=sec.querySelector("textarea"),texto=ta?ta.value.trim():"";
+    if(itens.length||texto)grupos.push({resp:sec.getAttribute("data-resp"),rotulo:sec.getAttribute("data-rotulo"),itens:itens,texto:texto});
+  });
+  if(grupos.length)needs.groups=grupos;
   if(extras.length)needs.extras=extras;
   var conf=id("banner").classList.contains("bad");
   var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};

@@ -35,31 +35,48 @@ var ALIASES = {
 var ESPACOS_DEF = ['Auditório','Nave do Templo','Sala 1','Sala 2','Área Gourmet','Sala Verde/Estúdio','Sala de reunião/atendimento','Briefing','Estacionamento'];
 var DEPARTS_DEF = ['RESET','XTRA','ROCKTES','KIDS','ENCONTRO DELAS','HOMENS','PROFÉTICO','FHOP SOCIAL','USHERS','SALA DE ORAÇÃO','LOUVOR','ADMINISTRATIVO','FINANCEIRO','HOSPITALIDADE','FHOP BOOKS','FHOP STORE','FHOP MUSIC','FHOP SCHOOL','FASCINAÇÃO','ESCOLAS','CENTRO TREINAMENTO','TECNOLOGIAS','COMUNICAÇÃO E MARKETING','PASTORAL','EVENTOS E CONFERÊNCIAS'];
 var PASTORES_DEF = ['Shalon','Camila','Cleber','Letícia','Vinicius','Emilaine','William','Nathalie','Hamilton','Brenon','Fernanda'].map(function(n){ return {nome:n, email:''}; });
-var RESP_DEF = [{papel:'Patrimônio', nome:'', email:''},{papel:'Audiovisual', nome:'', email:''},{papel:'Secretaria', nome:'', email:''},{papel:'Departamento', nome:'', email:''}];
+var RESP_DEF = [{papel:'Patrimônio', nome:'', email:'', corpo:''},{papel:'Audiovisual', nome:'', email:'', corpo:''},{papel:'Secretaria', nome:'', email:'', corpo:''},{papel:'Departamento', nome:'', email:'', corpo:''}];
+// Modelos de e-mail (HTML editável no Admin). Vazio = usa o modelo padrão abaixo.
+var EMAIL_RESP_DEF = 'Olá {responsavel},<br><br>Uma reserva foi confirmada e precisa de você (<b>{area}</b>).<br><br><b>Evento:</b> {evento}<br><b>Quando:</b> {data} · {horario}<br><b>Local:</b> {local}<br>{contato}{itens}{texto}<br>— Central de Reservas FHOP';
+var EMAIL_CONFIRM_DEF = 'Olá {solicitante},<br><br>Sua reserva foi <b>CONFIRMADA</b>.<br><br><b>Evento:</b> {evento}<br><b>Data:</b> {data}<br><b>Horário:</b> {horario}<br><b>Local:</b> {local}<br><br>Você também recebeu o convite na sua agenda.<br><br>— Central de Reservas FHOP';
+function normResp_(rs){
+  rs = (rs instanceof Array && rs.length) ? rs : RESP_DEF;
+  return rs.map(function(r){ return { papel:String(r.papel||''), nome:String(r.nome||''), email:String(r.email||''), corpo:(r.corpo!=null?String(r.corpo):'') }; });
+}
 // Cor do evento no Google Agenda por espaço (id "1".."11" das cores do Google).
 var CORES_DEF = {'Auditório':'9','Nave do Templo':'3','Sala 1':'1','Sala 2':'11','Área Gourmet':'7','Sala Verde/Estúdio':'2','Sala de reunião/atendimento':'6','Briefing':'4','Estacionamento':'8'};
 
-// Conteúdo editável da página pública de reserva (textos + listas de insumos). Os 3 grupos têm
-// identidade FIXA (patrim/av/sec) para não quebrar o roteamento dos e-mails; só rótulo e itens mudam.
+// Conteúdo editável da página pública de reserva. `insumos` é uma LISTA de grupos; cada grupo
+// aponta para um Responsável (por `resp` = papel) e é isso que decide o e-mail que recebe.
 var PAGINA_DEF = {
   titulo: 'Reserva de espaço',
   lead: 'Preencha abaixo. Ao escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.',
   rodape: '',
-  insumos: {
-    patrim: { rotulo:'Patrimônio', itens:['Cadeiras','Mesas','Outros objetos'] },
-    av:     { rotulo:'Audiovisual', itens:['Sistema de som','Microfone(s)','Iluminação especial'] },
-    sec:    { rotulo:'Secretaria (café/insumos)', itens:['Chaleira Elétrica','Garrafa Térmica','Café','Açúcar','Copos descartáveis','Geladeira','Projetor','Telão/Quadro'] }
-  }
+  insumos: [
+    { rotulo:'Patrimônio', resp:'Patrimônio', texto:true, itens:['Cadeiras','Mesas','Outros objetos'] },
+    { rotulo:'Audiovisual', resp:'Audiovisual', texto:true, itens:['Sistema de som','Microfone(s)','Iluminação especial'] },
+    { rotulo:'Secretaria (café/insumos)', resp:'Secretaria', texto:true, itens:['Chaleira Elétrica','Garrafa Térmica','Café','Açúcar','Copos descartáveis','Geladeira','Projetor','Telão/Quadro'] }
+  ]
 };
+function normInsumos_(ins){
+  if(ins instanceof Array){
+    return ins.map(function(g){ return { rotulo:String(g.rotulo||''), resp:String(g.resp||''), texto:(g.texto!==false), itens:(g.itens instanceof Array?g.itens:[]) }; })
+              .filter(function(g){ return g.rotulo || g.itens.length; });
+  }
+  if(ins && typeof ins==='object'){ // formato antigo {patrim,av,sec} → migra p/ lista
+    var out=[], map={patrim:'Patrimônio', av:'Audiovisual', sec:'Secretaria'};
+    ['patrim','av','sec'].forEach(function(k){ var g=ins[k]; if(g){ out.push({ rotulo:String(g.rotulo||map[k]), resp:map[k], texto:true, itens:(g.itens instanceof Array?g.itens:[]) }); } });
+    if(out.length) return out;
+  }
+  return PAGINA_DEF.insumos.map(function(g){ return { rotulo:g.rotulo, resp:g.resp, texto:g.texto, itens:g.itens.slice() }; });
+}
 function normPagina_(p){
-  p = p || {}; var ins = p.insumos || {};
-  function g(k){ var x = ins[k]||{}, d = PAGINA_DEF.insumos[k];
-    return { rotulo: (x.rotulo!=null?x.rotulo:d.rotulo), itens: (x.itens instanceof Array ? x.itens : d.itens) }; }
+  p = p || {};
   return {
     titulo: p.titulo!=null ? p.titulo : PAGINA_DEF.titulo,
     lead:   p.lead!=null   ? p.lead   : PAGINA_DEF.lead,
     rodape: p.rodape!=null ? p.rodape : PAGINA_DEF.rodape,
-    insumos: { patrim:g('patrim'), av:g('av'), sec:g('sec') },
+    insumos: normInsumos_(p.insumos),
     campos: (p.campos instanceof Array) ? p.campos : []
   };
 }
@@ -79,7 +96,8 @@ function cfg(){
     espacos: stored.espacos || ESPACOS_DEF.slice(),
     departamentos: stored.departamentos || DEPARTS_DEF.slice(),
     pastores: stored.pastores || PASTORES_DEF.slice(),
-    responsaveis: stored.responsaveis || RESP_DEF.slice(),
+    responsaveis: normResp_(stored.responsaveis),
+    emailConfirmacao: stored.emailConfirmacao || EMAIL_CONFIRM_DEF,
     aliases: Object.assign({}, ALIASES, stored.aliases||{}),
     linkPainel: stored.linkPainel || '',
     painelUser: stored.painelUser || 'fhopchurch@fhop.com',
@@ -571,6 +589,43 @@ function sendMail_(to, subject, body){
   if(!to || !/@/.test(to)) return;
   try{ MailApp.sendEmail({ to: to, subject: subject, body: body, htmlBody: _htmlBody_(body) }); }catch(e){}
 }
+// Envia um e-mail cujo corpo JÁ é HTML (modelos editáveis do Admin).
+function sendMailHtml_(to, subject, html){
+  if(!to || !/@/.test(to)) return;
+  var plain = String(html||'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'');
+  try{ MailApp.sendEmail({ to: to, subject: subject, body: plain, htmlBody: html }); }catch(e){}
+}
+// Preenche {placeholders} de um modelo.
+function _tpl_(tpl, map){ return String(tpl||'').replace(/\{(\w+)\}/g, function(_,k){ return (map[k]!=null) ? map[k] : ''; }); }
+// Responsável por papel (match exato; depois por substring).
+function respByPapel_(papel){
+  var rs = cfg().responsaveis || []; var p = String(papel||'').toLowerCase().trim(); if(!p) return null;
+  for(var i=0;i<rs.length;i++){ if(String(rs[i].papel||'').toLowerCase().trim() === p) return rs[i]; }
+  for(var j=0;j<rs.length;j++){ if(String(rs[j].papel||'').toLowerCase().indexOf(p) > -1) return rs[j]; }
+  return null;
+}
+// Normaliza os "needs" recebidos numa LISTA de grupos {resp, rotulo, itens[], texto}.
+// Aceita o formato novo (needs.groups) e o antigo (chaves Patrimônio/Audiovisual/Secretaria + textos/obs).
+function needsGroups_(needs){
+  if(!needs) return [];
+  if(needs.groups instanceof Array){
+    return needs.groups.map(function(g){ return { resp:String(g.resp||''), rotulo:String(g.rotulo||g.resp||''), itens:(g.itens instanceof Array?g.itens:[]), texto:String(g.texto||'') }; });
+  }
+  var out=[], tx=needs.textos||{};
+  function add(resp, rotulo, itens, texto){ if((itens&&itens.length)||texto) out.push({resp:resp, rotulo:rotulo, itens:itens||[], texto:texto||''}); }
+  Object.keys(needs).forEach(function(cat){
+    if(cat==='obs'||cat==='textos'||cat==='extras'||cat==='groups') return;
+    var low=String(cat).toLowerCase(), itens=needs[cat];
+    if(low.indexOf('patrim')>-1) add('Patrimônio','Patrimônio',itens,tx.patrim||'');
+    else if(low.indexOf('audio')>-1) add('Audiovisual','Audiovisual',itens,tx.av||'');
+    else if(low.indexOf('secret')>-1||low.indexOf('café')>-1||low.indexOf('cafe')>-1) add('Secretaria','Secretaria',itens,needs.obs||'');
+  });
+  // textos/obs sem itens marcados
+  if(tx.patrim && !out.some(function(g){return g.resp==='Patrimônio';})) add('Patrimônio','Patrimônio',[],tx.patrim);
+  if(tx.av && !out.some(function(g){return g.resp==='Audiovisual';})) add('Audiovisual','Audiovisual',[],tx.av);
+  if(needs.obs && !out.some(function(g){return g.resp==='Secretaria';})) add('Secretaria','Secretaria',[],needs.obs);
+  return out;
+}
 // Cor (id "1".."11") do evento conforme o espaço.
 function corEvento_(space){
   if(!space) return '';
@@ -593,21 +648,14 @@ function forcarConvites_(calId, iCalUID, emails){
   }catch(err){ return false; }
 }
 
-// E-mails de Patrimônio/Audiovisual que devem entrar como CONVIDADOS quando há insumos daquela área.
+// E-mails dos responsáveis envolvidos (por grupo de insumos) que entram como CONVIDADOS na agenda.
 function emailsResponsaveisEnvolvidos_(req){
-  var out = []; if(!req.needs) return out;
-  var n = req.needs, textos = n.textos || {};
-  function temArea(area){
-    for(var cat in n){ if(cat==='obs'||cat==='textos') continue; var arr=n[cat]; if(!arr||!arr.length) continue; var low=String(cat).toLowerCase();
-      if(area==='patrim' && low.indexOf('patrim')>-1) return true;
-      if(area==='audio' && low.indexOf('audio')>-1) return true;
-    }
-    if(area==='patrim' && textos.patrim) return true;
-    if(area==='audio' && textos.av) return true;
-    return false;
-  }
-  if(temArea('patrim')){ var e1=respEmail_('patrim'); if(e1 && /@/.test(e1)) out.push(e1); }
-  if(temArea('audio')){ var e2=respEmail_('audio'); if(e2 && /@/.test(e2)) out.push(e2); }
+  var out = [];
+  needsGroups_(req.needs).forEach(function(g){
+    if(!g.itens.length && !g.texto) return;
+    var r = respByPapel_(g.resp);
+    if(r && r.email && /@/.test(r.email) && out.indexOf(r.email) < 0) out.push(r.email);
+  });
   return out;
 }
 function notificarResponsaveis_(req){
@@ -625,39 +673,32 @@ function notificarResponsaveis_(req){
       '\n— Central de Reservas FHOP');
   }
   if(!req.needs) return;
-  var obs = req.needs.obs || '';
-  var textos = req.needs.textos || {};
   var extras = (req.needs.extras instanceof Array) ? req.needs.extras : [];
-  var extrasTxt = extras.length ? ('\nInformações adicionais:\n' + extras.map(function(x){ return '- ' + (x.label||'') + ': ' + (x.valor||''); }).join('\n') + '\n') : '';
-  var contato = (req.solicitante ? ('Solicitante: '+req.solicitante+'\n') : '') + (req.email ? ('Contato: '+req.email+'\n') : '');
-  // Agrupa por área: cada uma recebe SÓ o que é dela (itens marcados + campo de texto próprio).
-  var areas = {
-    patrim: { rotulo:'Patrimônio', itens:[], txt: textos.patrim || '' },
-    audio:  { rotulo:'Audiovisual', itens:[], txt: textos.av || '' },
-    secret: { rotulo:'Secretaria', itens:[], txt: obs || '' }  // "Outras observações" é o texto da Secretaria
-  };
-  Object.keys(req.needs).forEach(function(cat){
-    if(cat === 'obs' || cat === 'textos') return;
-    var itens = req.needs[cat]; if(!itens || !itens.length) return;
-    var low = String(cat).toLowerCase();
-    var a = low.indexOf('patrim') > -1 ? 'patrim'
-          : (low.indexOf('audio') > -1 ? 'audio'
-          : ((low.indexOf('secret') > -1 || low.indexOf('café') > -1 || low.indexOf('cafe') > -1) ? 'secret' : null));
-    if(a && areas[a]) areas[a].itens = areas[a].itens.concat(itens);
+  var extrasHtml = extras.length ? ('<br><b>Informações adicionais:</b><br>' + extras.map(function(x){ return _esc_(x.label||'') + ': ' + _esc_(x.valor||''); }).join('<br>') + '<br>') : '';
+  var contatoHtml = (req.solicitante ? ('<b>Solicitante:</b> '+_esc_(req.solicitante)+'<br>') : '') + (req.email ? ('<b>Contato:</b> '+_esc_(req.email)+'<br>') : '');
+  // Junta os grupos por responsável (um e-mail por responsável, com o corpo dele).
+  var byResp = {};
+  needsGroups_(req.needs).forEach(function(g){
+    if(!g.itens.length && !g.texto) return;
+    var r = respByPapel_(g.resp); if(!r || !r.email || !/@/.test(r.email)) return;
+    var k = r.email.toLowerCase();
+    if(!byResp[k]) byResp[k] = { resp:r, area:(g.rotulo||r.papel), itens:[], textos:[] };
+    byResp[k].itens = byResp[k].itens.concat(g.itens||[]);
+    if(g.texto) byResp[k].textos.push(g.texto);
   });
-  ['patrim','audio','secret'].forEach(function(a){
-    var A = areas[a];
-    var ex = (a==='secret') ? extrasTxt : '';
-    if(!A.itens.length && !A.txt && !ex) return;      // nada para essa área → não envia
-    var to = respEmail_(a); if(!to) return;
-    var nome = respNome_(a);
-    var corpo = 'Olá' + (nome ? (' ' + nome) : '') + ',\n\nUma reserva foi confirmada e precisa de você.\n\n' +
-      'Evento: ' + req.title + '\nQuando: ' + quando + '\nLocal: ' + local + '\n' + contato +
-      (A.itens.length ? ('\nItens marcados:\n- ' + A.itens.join('\n- ') + '\n') : '') +
-      (A.txt ? ('\n' + (a==='secret' ? 'Outras observações' : 'Pedido (' + A.rotulo + ')') + ':\n' + A.txt + '\n') : '') +
-      ex +
-      '\n— Central de Reservas FHOP';
-    sendMail_(to, A.rotulo + ' · ' + req.title, corpo);
+  Object.keys(byResp).forEach(function(k){
+    var B = byResp[k], r = B.resp;
+    var itensHtml = B.itens.length ? ('<br><b>Itens marcados:</b><br>• ' + B.itens.map(_esc_).join('<br>• ') + '<br>') : '';
+    var textoHtml = B.textos.length ? ('<br><b>Pedido:</b><br>' + B.textos.map(_esc_).join('<br>') + '<br>') : '';
+    var isSecret = String(r.papel||'').toLowerCase().indexOf('secret') > -1;
+    var map = {
+      responsavel: _esc_(r.nome||''), area: _esc_(B.area||r.papel||''),
+      evento: _esc_(req.title||''), data: _esc_(fmtBR_(req.date)),
+      horario: _esc_((req.s||'')+'–'+(req.e||'')), local: _esc_(local),
+      solicitante: _esc_(req.solicitante||''), contato: contatoHtml, itens: itensHtml, texto: textoHtml
+    };
+    var body = _tpl_(r.corpo || EMAIL_RESP_DEF, map) + (isSecret ? extrasHtml : '');
+    sendMailHtml_(r.email, (B.area||r.papel) + ' · ' + req.title, body);
   });
 }
 
@@ -817,12 +858,11 @@ function aprovar(req){
   }
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
   try { notificarResponsaveis_(req); } catch(e){}
-  // avisa o solicitante que foi confirmado
+  // avisa o solicitante que foi confirmado (modelo editável no Admin)
   if(req.email && /@/.test(req.email)){
-    sendMail_(req.email, 'Reserva confirmada: '+req.title,
-      'Olá'+(req.solicitante?(' '+req.solicitante):'')+',\n\nSua reserva foi CONFIRMADA.\n\n' +
-      'Evento: '+req.title+'\nData: '+fmtBR_(req.date)+'\nHorário: '+(req.s||'')+'–'+(req.e||'')+'\nLocal: '+local+'\n\n' +
-      'Você também recebeu o convite na sua agenda.\n\n— Central de Reservas FHOP');
+    var cmap = { solicitante:_esc_(req.solicitante||''), evento:_esc_(req.title||''),
+      data:_esc_(fmtBR_(req.date)), horario:_esc_((req.s||'')+'–'+(req.e||'')), local:_esc_(local) };
+    sendMailHtml_(req.email, 'Reserva confirmada: '+req.title, _tpl_(cfg().emailConfirmacao || EMAIL_CONFIRM_DEF, cmap));
   }
   return { ok:true, eventId: ev.getId() };
 }
