@@ -975,10 +975,10 @@ function adminHtml(){
   A.responsaveis.forEach(function(p,i){
     h+='<details style="border:1px solid var(--line);border-radius:8px;padding:0 10px;margin-bottom:8px"><summary style="cursor:pointer;font-size:13px;font-weight:700;padding:9px 0">Aviso — '+esc(p.papel||("Responsável "+(i+1)))+'</summary>'+
       '<p class="ahint">Variáveis: {responsavel} {area} {evento} {data} {horario} {local} {solicitante} {contato} {itens} {texto}</p>'+
-      '<textarea data-corpo="'+i+'" rows="7" style="'+taSt+'">'+esc(p.corpo||"")+'</textarea>'+
-      '<div style="font-size:11px;color:var(--ink-faint);margin:4px 0 10px">Deixe em branco para usar o modelo padrão.</div></details>';
+      '<textarea data-corpo="'+i+'" rows="7" style="'+taSt+'">'+esc(p.corpo||A.emailRespDefault||"")+'</textarea>'+
+      '<div style="font-size:11px;color:var(--ink-faint);margin:4px 0 10px">Edite à vontade. Se apagar tudo, volta ao modelo padrão.</div></details>';
   });
-  h+='<details style="border:1px solid var(--line);border-radius:8px;padding:0 10px;margin-bottom:4px"><summary style="cursor:pointer;font-size:13px;font-weight:700;padding:9px 0">Confirmação ao solicitante (quando aprova)</summary>'+
+  h+='<details style="border:1px solid var(--line);border-radius:8px;padding:0 10px;margin-bottom:4px"><summary style="cursor:pointer;font-size:13px;font-weight:700;padding:9px 0">Confirmação ao solicitante (reserva aprovada)</summary>'+
     '<p class="ahint">Variáveis: {solicitante} {evento} {data} {horario} {local}</p>'+
     '<textarea data-emailconfirm="1" rows="7" style="'+taSt+'">'+esc(A.emailConfirmacao||"")+'</textarea></details>';
   h+='</details>';

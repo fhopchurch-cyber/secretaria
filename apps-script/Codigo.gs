@@ -98,6 +98,7 @@ function cfg(){
     pastores: stored.pastores || PASTORES_DEF.slice(),
     responsaveis: normResp_(stored.responsaveis),
     emailConfirmacao: stored.emailConfirmacao || EMAIL_CONFIRM_DEF,
+    emailRespDefault: EMAIL_RESP_DEF,   // modelo padrão (referência p/ o Admin pré-preencher)
     aliases: Object.assign({}, ALIASES, stored.aliases||{}),
     linkPainel: stored.linkPainel || '',
     painelUser: stored.painelUser || 'fhopchurch@fhop.com',
