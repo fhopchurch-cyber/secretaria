@@ -302,26 +302,35 @@ id("form").addEventListener("submit",function(e){
   });
   if(grupos.length)needs.groups=grupos;
   if(extras.length)needs.extras=extras;
-  if(rep!=="nao"&&rep!=="datas"&&weeks>1)needs.recorrencia={tipo:rep,vezes:weeks};
+  // Recorrência → expande em DATAS: cada ocorrência vira uma solicitação separada para aprovar.
+  var sendDatas=null;
+  if(rep==="datas")sendDatas=rDatas.slice();
+  else if(rep!=="nao"&&weeks>1)sendDatas=expandRec(date,rep,weeks);
   var conf=id("banner").classList.contains("bad");
-  var baseDate=(rep==="datas")?(rDatas.slice().sort()[0]||date):date;
+  var baseDate=sendDatas?(sendDatas.slice().sort()[0]||date):date;
   var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:baseDate,s:s,e:en,spaces:sp,needs:needs};
+  var nOcc=sendDatas?sendDatas.length:1;
   window._sending=true;id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
   var run=google.script.run
     .withSuccessHandler(function(){
       window._sending=false;
-      id("successMsg").innerHTML=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
+      var base=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
+      id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base;
       id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
     })
     .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));});
-  if(rep==="datas")run.enviarReservaDatas(data,rDatas.slice());
+  if(sendDatas)run.enviarReservaDatas(data,sendDatas);
   else run.enviarReserva(data);
 });
 var rDatas=[];
+function _pad2(n){return (n<10?"0":"")+n;}
+function _isoParts(iso){var p=String(iso).split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
+function _toISO(d){return d.getFullYear()+"-"+_pad2(d.getMonth()+1)+"-"+_pad2(d.getDate());}
+function expandRec(base,tipo,vezes){var out=[];for(var i=0;i<vezes;i++){var d=_isoParts(base);if(tipo==="diaria")d.setDate(d.getDate()+i);else if(tipo==="semanal")d.setDate(d.getDate()+i*7);else if(tipo==="quinzenal")d.setDate(d.getDate()+i*14);else if(tipo==="mensal")d.setMonth(d.getMonth()+i);out.push(_toISO(d));}return out;}
 function fmtBRd(iso){var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+"/"+m[2]+"/"+m[1]):iso;}
 function renderRDatas(){var box=id("rDatasList");if(!box)return;box.innerHTML=rDatas.slice().sort().map(function(d,i){return '<span style="display:inline-flex;gap:6px;align-items:center;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px">'+fmtBRd(d)+'<button type="button" data-rm="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rm]").forEach(function(b){b.onclick=function(){var a=rDatas.slice().sort();a.splice(+b.getAttribute("data-rm"),1);rDatas=a;renderRDatas();};});}
 id("rDataAddBtn").onclick=function(){var v=id("rDataAdd").value;if(!v){alert("Escolha uma data");return;}if(rDatas.indexOf(v)<0)rDatas.push(v);id("rDataAdd").value="";renderRDatas();};
-id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"Cada data vira uma solicitação. A secretaria confirma.":"A secretaria confirma e a série vira eventos na agenda.";if(datas)renderRDatas();};
+id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent="Cada ocorrência vira uma solicitação separada — a secretaria aprova uma a uma.";if(datas)renderRDatas();};
 id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";rDatas=[];id("rRepeatWeeksWrap").style.display="none";id("rDatasWrap").style.display="none";id("rRepeatHint").style.display="none";renderRDatas();id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
 </script>
 </body>
