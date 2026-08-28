@@ -709,7 +709,9 @@ function encaminharComAgenda(item, det){
   var start = mkDate_(det.date, det.s||'09:00'), end = mkDate_(det.date, det.e||det.s||'10:00');
   var titulo = 'Atendimento pastoral — ' + det.pastor;
   var local = det.local || '';
-  var desc = ['Membro: '+(item.nome||''), item.motivo?('Motivo: '+item.motivo):'', 'Encaminhado via Central'].filter(String).join('\n');
+  // ÉTICA/PRIVACIDADE: o evento da agenda NÃO leva nome nem motivo do membro (fica visível na agenda).
+  // Esses dados vão só no e-mail ao pastor, abaixo.
+  var desc = local ? ('Espaço: ' + local) : '';
   var opts = { location: local, description: desc };
   var pe = pastorEmail_(det.pastor), guests = [];
   if(pe) guests.push(pe);
