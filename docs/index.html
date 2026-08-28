@@ -302,26 +302,33 @@ id("form").addEventListener("submit",function(e){
   });
   if(grupos.length)needs.groups=grupos;
   if(extras.length)needs.extras=extras;
-  // Recorrência → expande em DATAS: cada ocorrência vira uma solicitação separada para aprovar.
-  var sendDatas=null;
-  if(rep==="datas")sendDatas=rDatas.slice();
-  else if(rep!=="nao"&&weeks>1)sendDatas=expandRec(date,rep,weeks);
+  // Recorrência → expande em DATAS: cada ocorrência vira UMA solicitação (uma chamada enviarReserva por data).
+  var list;
+  if(rep==="datas")list=rDatas.slice();
+  else if(rep!=="nao"&&weeks>1)list=expandRec(date,rep,weeks);
+  else list=[date];
   var conf=id("banner").classList.contains("bad");
-  var baseDate=sendDatas?(sendDatas.slice().sort()[0]||date):date;
-  var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:baseDate,s:s,e:en,spaces:sp,needs:needs};
-  var nOcc=sendDatas?sendDatas.length:1;
-  window._sending=true;id("submitBtn").disabled=true;id("submitBtn").textContent="Enviando…";
-  var run=google.script.run
-    .withSuccessHandler(function(){
-      window._sending=false;
-      var base=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
-      id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base;
-      id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
-    })
-    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+(err.message||err));});
-  if(sendDatas)run.enviarReservaDatas(data,sendDatas);
-  else run.enviarReserva(data);
+  var data={title:title,tipo:"reserva",dept:rDept.value,tagPastor:"",solicitante:name,email:email,date:date,s:s,e:en,spaces:sp,needs:needs};
+  var nOcc=list.length;
+  window._sending=true;id("submitBtn").disabled=true;id("submitBtn").textContent=nOcc>1?("Enviando 1/"+nOcc+"…"):"Enviando…";
+  sendMany(list,data,function(){
+    window._sending=false;
+    var base=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
+    id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base;
+    id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
+  },function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+((err&&err.message)||err));});
 });
+// envia uma solicitação por data, em sequência (usa só enviarReserva, que já está publicado)
+function sendMany(datas,data,done,fail){
+  var i=0,total=datas.length;
+  function next(){
+    if(i>=total){done();return;}
+    var d2={};for(var k in data)d2[k]=data[k];d2.date=datas[i];i++;
+    if(total>1){var b=id("submitBtn");if(b)b.textContent="Enviando "+i+"/"+total+"…";}
+    google.script.run.withSuccessHandler(next).withFailureHandler(fail).enviarReserva(d2);
+  }
+  next();
+}
 var rDatas=[];
 function _pad2(n){return (n<10?"0":"")+n;}
 function _isoParts(iso){var p=String(iso).split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
