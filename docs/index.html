@@ -139,7 +139,7 @@ var google={script:{}};
       <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
     </form>
     <p class="foot" id="pgFoot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.</p>
-    <div style="text-align:center;font-size:10px;color:var(--ink-faint);margin-top:4px">versão r6 · recorrência ativa</div>
+    <div style="text-align:center;font-size:10px;color:var(--ink-faint);margin-top:4px">versão r7 · recorrência ativa</div>
   </div>
 
   <dialog id="loginDialog" style="border:0;border-radius:16px;padding:0;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
@@ -291,8 +291,7 @@ id("form").addEventListener("submit",function(e){
   var date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
   var rep=id("rRepeat").value,weeks=Math.max(2,parseInt(id("rRepeatWeeks").value,10)||2);
   if(!name||!title){alert("Preencha nome e evento.");return;}
-  if(rep!=="datas"&&!date){alert("Preencha a data.");return;}
-  if(rep==="datas"&&!rDatas.length){alert("Adicione ao menos uma data em “Datas específicas”.");return;}
+  if(!date){alert("Preencha a data.");return;}
   if(!sp.length){alert("Escolha ao menos um espaço.");return;}
   if(toMin(en)<=toMin(s)){alert("O término deve ser depois do início.");return;}
   var extras=collectExtras();
@@ -308,7 +307,7 @@ id("form").addEventListener("submit",function(e){
   // Recorrência → expande em DATAS. UMA única chamada ao servidor (enviarReservaDatas) cria todas —
   // fazer várias chamadas seguidas ao Apps Script é instável (algumas são engolidas e a data some).
   var list;
-  if(rep==="datas")list=rDatas.slice();
+  if(rep==="datas"){ list=[date].concat(rDatas); list=list.filter(function(d,i){return d&&list.indexOf(d)===i;}); } // a Data acima é a 1ª ocorrência + as datas marcadas
   else if(rep!=="nao"&&weeks>1)list=expandRec(date,rep,weeks);
   else list=[date];
   var conf=id("banner").classList.contains("bad");
@@ -334,7 +333,7 @@ function expandRec(base,tipo,vezes){var out=[];for(var i=0;i<vezes;i++){var d=_i
 function fmtBRd(iso){var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+"/"+m[2]+"/"+m[1]):iso;}
 function renderRDatas(){var box=id("rDatasList");if(!box)return;box.innerHTML=rDatas.slice().sort().map(function(d,i){return '<span style="display:inline-flex;gap:6px;align-items:center;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px">'+fmtBRd(d)+'<button type="button" data-rm="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rm]").forEach(function(b){b.onclick=function(){var a=rDatas.slice().sort();a.splice(+b.getAttribute("data-rm"),1);rDatas=a;renderRDatas();};});}
 id("rDataAddBtn").onclick=function(){var v=id("rDataAdd").value;if(!v){alert("Escolha uma data");return;}if(rDatas.indexOf(v)<0)rDatas.push(v);id("rDataAdd").value="";renderRDatas();};
-id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent="Cada ocorrência vira uma solicitação separada — a secretaria aprova uma a uma.";if(datas)renderRDatas();};
+id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"A “Data” acima é a 1ª ocorrência. Adicione abaixo as outras datas. Cada uma vira uma solicitação separada.":"Cada ocorrência vira uma solicitação separada — a secretaria aprova uma a uma.";if(datas)renderRDatas();};
 id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";rDatas=[];id("rRepeatWeeksWrap").style.display="none";id("rDatasWrap").style.display="none";id("rRepeatHint").style.display="none";renderRDatas();id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
 </script>
 </body>
