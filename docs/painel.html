@@ -12,7 +12,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","migrarParaAtendimento","migrarParaReserva"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -284,8 +284,9 @@ var google={script:{}};
       <div class="field"><label for="evtDate">Data</label><input id="evtDate" type="date"></div>
       <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="evtStart" type="time" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="evtEnd" type="time" style="flex:1"></div></div>
     </div>
-    <div class="field"><label for="evtEmail">E-mail (opcional)</label><input id="evtEmail" type="email" placeholder="pessoa@exemplo.com"></div>
-    <label style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="evtSend" style="width:auto"> Enviar e-mail de confirmação para esse endereço</label>
+    <div class="field" id="evtGuestsWrap" style="display:none"><label>Convidados atuais (marque para remover o e-mail errado)</label><div id="evtGuests" style="display:flex;flex-direction:column;gap:5px"></div></div>
+    <div class="field"><label for="evtEmail">E-mail do solicitante (corrigir / reenviar)</label><input id="evtEmail" type="email" placeholder="pessoa@exemplo.com"></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="evtSend" style="width:auto"> Convidar na agenda e enviar o e-mail de confirmação para esse endereço</label>
     <div class="dlg-actions"><button type="button" class="btn-ghost" id="evtCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar na agenda</button></div>
   </form>
 </dialog>
@@ -608,17 +609,25 @@ function openEvtEdit(id,title,cur,date,s,e){
   document.getElementById("evtStart").value=s||"";document.getElementById("evtEnd").value=e||"";
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
   document.getElementById("evtSub").textContent="Evento: "+title;
+  // carrega os convidados atuais para poder remover o e-mail errado
+  var gw=document.getElementById("evtGuestsWrap"),gb=document.getElementById("evtGuests");
+  gw.style.display="none";gb.innerHTML='<span style="font-size:12px;color:var(--ink-faint)">Carregando convidados…</span>';gw.style.display="block";
+  google.script.run.withSuccessHandler(function(list){
+    if(!list||!list.length){gw.style.display="none";return;}
+    gb.innerHTML=list.map(function(em){return '<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" class="evtrmg" value="'+esc(em)+'" style="width:auto"> remover <b>'+esc(em)+'</b></label>';}).join("");
+  }).withFailureHandler(function(){gw.style.display="none";}).getConvidados(id);
   var d=document.getElementById("evtDialog");if(d.showModal)d.showModal();
 }
 document.getElementById("evtCancel").onclick=function(){document.getElementById("evtDialog").close();};
 document.getElementById("evtForm").addEventListener("submit",function(ev){
   ev.preventDefault();if(!evtId)return;
   var esel=[];document.querySelectorAll("#evtSpaceGrid input:checked").forEach(function(c){esel.push(c.value);});
-  var campos={space:esel.join(", "),date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked};
+  var rmg=[];document.querySelectorAll("#evtGuests .evtrmg:checked").forEach(function(c){rmg.push(c.value);});
+  var campos={space:esel.join(", "),date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked,removerEmails:rmg};
   if(campos.s&&campos.e&&toMin(campos.e)<=toMin(campos.s)){toast("Término deve ser depois do início",true);return;}
   if(campos.enviarEmail&&!campos.email){toast("Informe o e-mail para enviar a confirmação",true);return;}
   document.getElementById("evtDialog").close();toast("Salvando na agenda…");
-  google.script.run.withSuccessHandler(function(){toast("✓ Evento atualizado"+(campos.enviarEmail?" · e-mail enviado":""));loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).editarEvento(evtId,campos);
+  google.script.run.withSuccessHandler(function(){toast("✓ Evento atualizado"+(rmg.length?" · convidado removido":"")+(campos.enviarEmail?" · e-mail enviado":""));loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).editarEvento(evtId,campos);
 });
 // ===== Editar atendimento =====
 var patKey=null;

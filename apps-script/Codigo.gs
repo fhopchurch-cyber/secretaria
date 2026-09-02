@@ -166,6 +166,15 @@ function normAll(raw){
 function definirEspacoEvento(eventId, space){
   return editarEvento(eventId, { space: space });
 }
+/** Lista os e-mails convidados de um evento (para o painel poder remover o errado). */
+function getConvidados(eventId){
+  if(!eventId) return [];
+  try{
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+    var ev = cal.getEventById(eventId); if(!ev) return [];
+    return ev.getGuestList().map(function(g){ return g.getEmail(); }).filter(function(e){ return !!e; });
+  }catch(e){ return []; }
+}
 /** Excluir um evento (ou série) direto na agenda do Google. */
 function excluirEvento(eventId){
   if(!eventId) throw new Error('Evento inválido.');
@@ -197,15 +206,20 @@ function editarEvento(eventId, campos){
   if(campos.date && campos.s && campos.e){
     ev.setTime(mkDate_(campos.date, campos.s), mkDate_(campos.date, campos.e));
   }
+  // remove convidados errados/antigos (ex.: e-mail digitado errado pelo solicitante)
+  if(campos.removerEmails && campos.removerEmails.length){
+    campos.removerEmails.forEach(function(em){ if(em && /@/.test(em)){ try{ ev.removeGuest(em); }catch(e){} } });
+  }
   if(campos.enviarEmail && campos.email && /@/.test(campos.email)){
-    try{ ev.addGuest(campos.email); }catch(e){}
+    // convite garantido (API avançada) + fallback; depois o e-mail informativo
+    var okc = forcarConvites_(cfg().fontes.agenda, ev.getId(), [campos.email]);
+    if(!okc){ try{ ev.addGuest(campos.email); }catch(e){} }
     var d = ev.getStartTime();
-    sendMail_(campos.email, 'Reserva confirmada: ' + ev.getTitle(),
-      'Sua reserva está confirmada.\n\n' +
-      'Evento: ' + ev.getTitle() + '\n' +
-      'Data: ' + fmtBR_(Utilities.formatDate(d, TZ, 'yyyy-MM-dd')) + '\n' +
-      'Horário: ' + Utilities.formatDate(d, TZ, 'HH:mm') + '–' + Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm') + '\n' +
-      'Local: ' + (campos.space || ev.getLocation() || '') + '\n\n— Central de Reservas FHOP');
+    var cmap = { solicitante:'', evento:_esc_(ev.getTitle()),
+      data:_esc_(fmtBR_(Utilities.formatDate(d, TZ, 'yyyy-MM-dd'))),
+      horario:_esc_(Utilities.formatDate(d, TZ, 'HH:mm')+'–'+Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm')),
+      local:_esc_(campos.space || ev.getLocation() || '') };
+    sendMailHtml_(campos.email, 'Reserva confirmada: ' + ev.getTitle(), _tpl_(cfg().emailConfirmacao || EMAIL_CONFIRM_DEF, cmap));
   }
   invalidarCache_();
   try{ var dd = ev.getStartTime(); CacheService.getScriptCache().remove('ag-'+dd.getFullYear()+'-'+dd.getMonth()); }catch(e){}
@@ -224,7 +238,7 @@ function _apiMap_(){
     aprovar:aprovar, recusar:recusar, desfazer:desfazer, excluir:excluir, excluirLote:excluirLote,
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
-    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento,
+    definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
     migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva
   };
 }
