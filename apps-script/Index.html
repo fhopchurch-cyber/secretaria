@@ -414,6 +414,10 @@ function wireActions(scope){
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
+  var rlp=scope.querySelector("#relPeriodo");
+  if(rlp)rlp.onchange=function(){window._relPeriodo=rlp.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var d=document.querySelector("#relPeriodo");if(d){var det=d.closest("details");if(det)det.open=true;}};
+  var rpr=scope.querySelector("#relPrint");
+  if(rpr)rpr.onclick=function(){printRelatorio();};
   var pes=scope.querySelector("#pedSearch");
   if(pes)pes.oninput=function(){window._pedQ=pes.value;var bd=document.getElementById("body");bd.innerHTML=pedidosHtml();wireActions(bd);var n=document.getElementById("pedSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
   var pso=scope.querySelector("#pedSort");
@@ -858,17 +862,47 @@ function conflitosHtml(){
     return '<div class="row" style="border-left:3px solid var(--crit)"><div class="rmain" data-det="'+esc(r.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta"><span class="chip crit">choca com: '+esc(c.other.title)+'</span><span class="chip">'+(c.tipo==="agenda"?"na agenda":"outro pedido")+'</span><span style="color:var(--crit)">'+esc(c.space)+'</span></span></div><span class="rwhen mono">'+fmtD(r.date)+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
   }).join("")+'</div>';
 }
+var MESN=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function mesLabel(ym){var p=String(ym).split("-");return (MESN[(+p[1])-1]||"?")+"/"+p[0];}
+function relDados(){
+  var enc=DATA.pastoral.filter(function(p){return p.status==="encaminhado"&&p.pastor;});
+  var mesesObj={};enc.forEach(function(p){var m=String(p.date||"").slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mesesObj[m]=1;});
+  var meses=Object.keys(mesesObj).sort().reverse();
+  var per=window._relPeriodo||"total";if(per!=="total"&&meses.indexOf(per)<0)per="total";
+  var filt=per==="total"?enc:enc.filter(function(p){return String(p.date||"").slice(0,7)===per;});
+  var cont={};filt.forEach(function(p){cont[p.pastor]=(cont[p.pastor]||0)+1;});
+  var linhas=Object.keys(cont).map(function(k){return {pastor:k,n:cont[k]};}).sort(function(a,b){return b.n-a.n||a.pastor.localeCompare(b.pastor);});
+  return {per:per,meses:meses,linhas:linhas,total:filt.length};
+}
+function relatorioHtml(){
+  var selSt='font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)';
+  var d=relDados();
+  var sel='<select id="relPeriodo" style="'+selSt+'"><option value="total"'+(d.per==="total"?" selected":"")+'>Total (todos os meses)</option>'+d.meses.map(function(m){return '<option value="'+m+'"'+(d.per===m?" selected":"")+'>'+mesLabel(m)+'</option>';}).join("")+'</select>';
+  var th='style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-faint);text-transform:uppercase;font-size:11px;letter-spacing:.04em"';
+  var td='style="padding:6px 8px;border-bottom:1px solid var(--line)"';
+  var tabela=d.linhas.length?('<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px"><thead><tr><th '+th+'>Pastor</th><th '+th+' style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-faint);text-transform:uppercase;font-size:11px">Atendimentos</th></tr></thead><tbody>'+d.linhas.map(function(r){return '<tr><td '+td+'>'+esc(r.pastor)+'</td><td '+td+' style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-weight:700">'+r.n+'</td></tr>';}).join("")+'<tr><td style="padding:8px;font-weight:800">Total</td><td style="padding:8px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+d.total+'</td></tr></tbody></table>'):'<div class="empty" style="margin-top:8px">Nenhum atendimento encaminhado'+(d.per==="total"?"":" nesse mês")+'.</div>';
+  return '<details class="adminsec" style="margin:0 0 12px"><summary>📊 Relatório por pastor</summary><p class="ahint">Quantos atendimentos cada pastor recebeu (encaminhados). Escolha o período.</p><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Período</label>'+sel+'<button class="btn-sm" id="relPrint" style="margin-left:auto">🖨 Imprimir</button></div>'+tabela+'</details>';
+}
+function printRelatorio(){
+  var d=relDados();
+  var titulo="Atendimentos por pastor — "+(d.per==="total"?"Total (todos os meses)":mesLabel(d.per));
+  var rows=d.linhas.map(function(r){return '<tr><td>'+esc(r.pastor)+'</td><td style="text-align:right">'+r.n+'</td></tr>';}).join("")+'<tr><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700">'+d.total+'</td></tr>';
+  var w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir",true);return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(titulo)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{width:100%;border-collapse:collapse;font-size:13px;max-width:480px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #ddd}th{background:#f2f2f2;text-transform:uppercase;font-size:10.5px}</style></head><body><h1>FHOP · Atendimentos pastorais</h1><div class="sub">'+esc(titulo)+'</div><table><thead><tr><th>Pastor</th><th style="text-align:right">Atendimentos</th></tr></thead><tbody>'+rows+'</tbody></table><scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
+  w.document.close();
+}
 function pastoralHtml(){
   var all=DATA.pastoral.filter(function(p){return p.status!=="excluido";});
   var q=(window._pasQ||"").toLowerCase();
   var list=all.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
   var aguard=all.filter(function(p){return !p.status||p.status==="pendente";}).length;
   var enc=all.filter(function(p){return p.status==="encaminhado";}).length;
+  var rep=relatorioHtml();
   var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)</span></div>';
-  if(!list.length)return bar+'<div class="empty">Nenhum atendimento.</div>';
+  if(!list.length)return rep+bar+'<div class="empty">Nenhum atendimento.</div>';
   // aguardando primeiro, depois encaminhados
   list.sort(function(a,b){var sa=a.status==="encaminhado"?1:0,sb=b.status==="encaminhado"?1:0;return sa-sb;});
-  return bar+bulkBar()+'<div class="rows">'+list.map(function(p){
+  return rep+bar+bulkBar()+'<div class="rows">'+list.map(function(p){
     var st=p.status||"pendente";
     var isEnc=st==="encaminhado";
     var chip=isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>';
