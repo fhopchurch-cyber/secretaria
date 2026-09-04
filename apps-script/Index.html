@@ -496,7 +496,7 @@ function openAdd(){
   document.getElementById("aMotivo").value="";
   document.getElementById("aRepeat").value="nao";document.getElementById("aRepeatWeeks").value="4";document.getElementById("aRepeatWeeksWrap").style.display="none";document.getElementById("aRepeatHint").style.display="none";
   document.getElementById("aDatasWrap").style.display="none";document.getElementById("aDataAdd").value="";addDatas=[];renderDatasChips();
-  addConvidados=[];document.getElementById("aGuestAdd").value="";renderGuestChips("aGuestsList",addConvidados);
+  addConvidados.length=0;document.getElementById("aGuestAdd").value="";renderGuestChips("aGuestsList",addConvidados);
   fillAddNeeds();
   addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");dep.hidden=false;pas.hidden=true;applyAddType();
   var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
@@ -628,7 +628,7 @@ function openEvtEdit(id,title,cur,date,s,e,serie){
   document.getElementById("evtDate").value=(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))?date:"";
   document.getElementById("evtStart").value=s||"";document.getElementById("evtEnd").value=e||"";
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
-  evtAddConvidados=[];document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);
+  evtAddConvidados.length=0;document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);
   fillNeedsInto("evtNeedsGroups");document.getElementById("evtNeedsWrap").open=false;
   document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"");
   var gw=document.getElementById("evtGuestsWrap"),gb=document.getElementById("evtGuests");
