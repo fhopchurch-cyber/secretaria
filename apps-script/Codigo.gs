@@ -175,55 +175,103 @@ function getConvidados(eventId){
     return ev.getGuestList().map(function(g){ return g.getEmail(); }).filter(function(e){ return !!e; });
   }catch(e){ return []; }
 }
-/** Excluir um evento (ou série) direto na agenda do Google. */
-function excluirEvento(eventId){
+/** Normaliza uma lista/casca de e-mails (array ou string com , ou ;) → array limpo e único. */
+function convidadosArr_(v){
+  var out = []; if(!v) return out;
+  var arr = (v instanceof Array) ? v : String(v).split(/[;,]/);
+  arr.forEach(function(x){ String(x).split(/[;,]/).forEach(function(e){ e = String(e).trim(); if(e && /@/.test(e) && out.indexOf(e) < 0) out.push(e); }); });
+  return out;
+}
+/** Extrai o id de série marcado na descrição do evento, ex.: [serie:S123]. */
+function serieDe_(desc){ var m = String(desc||'').match(/\[serie:([A-Za-z0-9_-]+)\]/); return m ? m[1] : ''; }
+/** Todos os eventos de uma série (varre ±400 dias da data de referência). */
+function eventosDaSerie_(cal, serie, ref){
+  if(!serie) return [];
+  var from = new Date(ref.getTime() - 400*864e5), to = new Date(ref.getTime() + 400*864e5);
+  var evs = cal.getEvents(from, to), out = [];
+  for(var i=0;i<evs.length;i++){ if(serieDe_(evs[i].getDescription()) === serie) out.push(evs[i]); }
+  out.sort(function(a,b){ return a.getStartTime() - b.getStartTime(); });
+  return out;
+}
+/** Resolve quais eventos entram no escopo ('this' | 'following' | 'all') a partir do clicado. */
+function alvoEscopo_(cal, ev, escopo){
+  var serie = serieDe_(ev.getDescription()), ref = ev.getStartTime();
+  if(!serie || !escopo || escopo === 'this') return [ev];
+  var todos = eventosDaSerie_(cal, serie, ref);
+  if(!todos.length) return [ev];
+  return (escopo === 'following') ? todos.filter(function(e){ return e.getStartTime() >= ref; }) : todos;
+}
+/** Excluir um evento direto na agenda. escopo (opcional) p/ séries: 'this' | 'following' | 'all'. */
+function excluirEvento(eventId, escopo){
   if(!eventId) throw new Error('Evento inválido.');
   var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
-  var d = null; try{ var e0 = cal.getEventById(eventId); if(e0) d = e0.getStartTime(); }catch(_){}
-  apagarEvento_(cal, eventId);
+  var ev = cal.getEventById(eventId);
+  var alvo = ev ? alvoEscopo_(cal, ev, escopo) : [];
+  var meses = {};
+  alvo.forEach(function(e){ try{ var d = e.getStartTime(); meses[d.getFullYear()+'-'+d.getMonth()] = 1; }catch(_){}
+    try{ apagarEvento_(cal, e.getId()); }catch(_){ try{ e.deleteEvent(); }catch(__){} } });
+  if(!alvo.length) apagarEvento_(cal, eventId);
   invalidarCache_();
-  try{ if(d) CacheService.getScriptCache().remove('ag-'+d.getFullYear()+'-'+d.getMonth()); }catch(e){}
-  return { ok:true };
+  Object.keys(meses).forEach(function(k){ try{ CacheService.getScriptCache().remove('ag-'+k); }catch(_){} });
+  return { ok:true, n:alvo.length };
 }
-/** Edita um evento da agenda: espaço, horário e (opcional) e-mail de confirmação. */
-function editarEvento(eventId, campos){
+/** Edita um evento da agenda: espaço, horário, convidados, responsáveis e (opcional) e-mail de confirmação.
+ *  escopo (p/ séries): 'this' (padrão) | 'following' | 'all'. */
+function editarEvento(eventId, campos, escopo){
   if(!eventId) throw new Error('Evento inválido.');
   campos = campos || {};
   var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
   var ev = cal.getEventById(eventId);
   if(!ev) throw new Error('Evento não encontrado na agenda.');
-  if(campos.space != null){
-    ev.setLocation(campos.space);
-    var _c1 = String(campos.space).split(',')[0].trim();
-    var cor = corEvento_(_c1); if(cor){ try{ ev.setColor(cor); }catch(e){} }
-    // garante o espaço na descrição
-    try{
-      var d0 = ev.getDescription() || '';
-      var d1 = d0.replace(/^Espaço:.*$/mi, '').replace(/\n{2,}/g,'\n').trim();
-      ev.setDescription((campos.space ? ('Espaço: '+campos.space+'\n') : '') + d1);
-    }catch(e){}
+  var ref = ev.getStartTime();
+  var alvo = alvoEscopo_(cal, ev, escopo);
+  var soUm = alvo.length === 1;
+  var addg = convidadosArr_(campos.addConvidados);
+  var meses = {};
+  alvo.forEach(function(e){
+    if(campos.space != null){
+      e.setLocation(campos.space);
+      var _c1 = String(campos.space).split(',')[0].trim();
+      var cor = corEvento_(_c1); if(cor){ try{ e.setColor(cor); }catch(_){} }
+      try{
+        var d0 = e.getDescription() || '', sid = serieDe_(d0), mk = sid ? ('\n[serie:'+sid+']') : '';
+        var d1 = d0.replace(/^Espaço:.*$/mi, '').replace(/\[serie:[A-Za-z0-9_-]+\]/, '').replace(/\n{2,}/g,'\n').trim();
+        e.setDescription((campos.space ? ('Espaço: '+campos.space+'\n') : '') + d1 + mk);
+      }catch(_){}
+    }
+    if(campos.s && campos.e){
+      // aplica o horário na data de cada evento (na edição de 1 só, permite mudar a data)
+      var useDate = (soUm && campos.date) ? campos.date : Utilities.formatDate(e.getStartTime(), TZ, 'yyyy-MM-dd');
+      try{ e.setTime(mkDate_(useDate, campos.s), mkDate_(useDate, campos.e)); }catch(_){}
+    }
+    if(campos.removerEmails && campos.removerEmails.length){
+      campos.removerEmails.forEach(function(em){ if(em && /@/.test(em)){ try{ e.removeGuest(em); }catch(_){} } });
+    }
+    if(addg.length){ var ok = forcarConvites_(cfg().fontes.agenda, e.getId(), addg); if(!ok){ addg.forEach(function(em){ try{ e.addGuest(em); }catch(_){} }); } }
+    try{ var dm = e.getStartTime(); meses[dm.getFullYear()+'-'+dm.getMonth()] = 1; }catch(_){}
+  });
+  // avisa os responsáveis (patrimônio/secretaria/AV) se marcados na edição — uma vez
+  if(campos.needs && campos.needs.groups && campos.needs.groups.length){
+    try{ notificarResponsaveis_({ title:ev.getTitle(),
+      date: Utilities.formatDate(ref, TZ, 'yyyy-MM-dd'),
+      s: campos.s || Utilities.formatDate(ref, TZ, 'HH:mm'),
+      e: campos.e || Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
+      spaces: campos.space ? String(campos.space).split(',').map(function(x){ return x.trim(); }) : [],
+      needs: campos.needs, email:'' }); }catch(_){}
   }
-  if(campos.date && campos.s && campos.e){
-    ev.setTime(mkDate_(campos.date, campos.s), mkDate_(campos.date, campos.e));
-  }
-  // remove convidados errados/antigos (ex.: e-mail digitado errado pelo solicitante)
-  if(campos.removerEmails && campos.removerEmails.length){
-    campos.removerEmails.forEach(function(em){ if(em && /@/.test(em)){ try{ ev.removeGuest(em); }catch(e){} } });
-  }
+  // e-mail de confirmação ao solicitante (uma vez)
   if(campos.enviarEmail && campos.email && /@/.test(campos.email)){
-    // convite garantido (API avançada) + fallback; depois o e-mail informativo
     var okc = forcarConvites_(cfg().fontes.agenda, ev.getId(), [campos.email]);
-    if(!okc){ try{ ev.addGuest(campos.email); }catch(e){} }
-    var d = ev.getStartTime();
+    if(!okc){ try{ ev.addGuest(campos.email); }catch(_){} }
     var cmap = { solicitante:'', evento:_esc_(ev.getTitle()),
-      data:_esc_(fmtBR_(Utilities.formatDate(d, TZ, 'yyyy-MM-dd'))),
-      horario:_esc_(Utilities.formatDate(d, TZ, 'HH:mm')+'–'+Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm')),
+      data:_esc_(fmtBR_(Utilities.formatDate(ref, TZ, 'yyyy-MM-dd'))),
+      horario:_esc_((campos.s||Utilities.formatDate(ref, TZ, 'HH:mm'))+'–'+(campos.e||Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'))),
       local:_esc_(campos.space || ev.getLocation() || '') };
     sendMailHtml_(campos.email, 'Reserva confirmada: ' + ev.getTitle(), _tpl_(cfg().emailConfirmacao || EMAIL_CONFIRM_DEF, cmap));
   }
   invalidarCache_();
-  try{ var dd = ev.getStartTime(); CacheService.getScriptCache().remove('ag-'+dd.getFullYear()+'-'+dd.getMonth()); }catch(e){}
-  return { ok:true };
+  Object.keys(meses).forEach(function(k){ try{ CacheService.getScriptCache().remove('ag-'+k); }catch(_){} });
+  return { ok:true, n:alvo.length };
 }
 
 /* =========================================================
@@ -469,7 +517,8 @@ function _computeDados_(){
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
         space: _all[0] || null,
-        spaces: _all
+        spaces: _all,
+        serie: serieDe_(ev.getDescription())
       });
     }
   }catch(err){ out.erros.push('Agenda: '+err); }
@@ -552,12 +601,15 @@ function enviarReservaDatas(data, datas){
 }
 
 /** Cria a MESMA ocorrência em várias datas específicas (cada uma vira um evento). */
-function adicionarOcorrenciasMultiplas(data, datas, aprovarJa){
+function adicionarOcorrenciasMultiplas(data, datas, aprovarJa, serieId){
   if(!datas || !datas.length) throw new Error('Escolha ao menos uma data.');
+  // Toda ocorrência da mesma leva vira uma "série" (mesmo id) p/ editar/excluir em bloco depois.
+  var serie = (datas.length > 1) ? (serieId || ('S' + Utilities.getUuid().replace(/-/g,'').slice(0,10))) : '';
   var n = 0;
   datas.forEach(function(dt){
     if(!dt) return;
     var d2 = Object.assign({}, data); d2.date = dt;
+    d2.needs = Object.assign({}, data.needs || {}); if(serie) d2.needs.serie = serie;
     var res = enviarReserva(d2);
     if(aprovarJa){
       aprovar({ key:res.key, title:d2.title, dept:d2.dept||'', tagPastor:d2.tagPastor||'',
@@ -566,7 +618,7 @@ function adicionarOcorrenciasMultiplas(data, datas, aprovarJa){
     }
     n++;
   });
-  return { ok:true, n:n };
+  return { ok:true, n:n, serie:serie };
 }
 
 /** Adicionar ocorrência direto no painel (secretaria). Opcional: já aprovar → agenda. */
@@ -774,7 +826,8 @@ function getAgendaMes(ano, mes){
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
         space: _all[0] || null,
-        spaces: _all
+        spaces: _all,
+        serie: serieDe_(ev.getDescription())
       });
     }
   }catch(e){}
@@ -864,7 +917,8 @@ function aprovar(req){
   var quem = req.tagPastor ? ('Pastor: '+req.tagPastor) : (req.dept ? ('Depto: '+req.dept) : '');
   var titulo = req.title + (req.dept ? ' — '+req.dept : (req.tagPastor ? ' — '+req.tagPastor : ''));
   var local = (req.spaces||[]).join(', ');
-  var desc = local ? ('Espaço: ' + local) : '';
+  var _serie = (req.needs && req.needs.serie) ? String(req.needs.serie) : '';
+  var desc = (local ? ('Espaço: ' + local) : '') + (_serie ? ('\n[serie:'+_serie+']') : '');
   var opts = { location: local, description: desc };
   var ev;
   if(req.recorrencia && +req.recorrencia.vezes > 1){
@@ -882,6 +936,7 @@ function aprovar(req){
   var guests = [];
   if(req.email && /@/.test(req.email)) guests.push(req.email);
   emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
+  if(req.needs && req.needs.convidados){ convidadosArr_(req.needs.convidados).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); }); }
   if(guests.length){
     var enviou = forcarConvites_(cfg().fontes.agenda, ev.getId(), guests);   // API avançada (e-mail garantido)
     if(!enviou){ guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} }); } // fallback

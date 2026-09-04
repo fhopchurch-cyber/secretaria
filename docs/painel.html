@@ -239,6 +239,10 @@ var google={script:{}};
       <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="aStart" type="time" value="19:00" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="aEnd" type="time" value="21:00" style="flex:1"></div></div>
     </div>
     <div class="field" id="aSpacesWrap"><label>Espaço(s)</label><div class="spacegrid" id="aSpaceGrid"></div></div>
+    <div class="field" id="aGuestsWrap"><label>Convidados (e-mails) <span style="font-weight:400;color:var(--ink-faint)">— opcional, quantos quiser</span></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aGuestAdd" type="email" placeholder="pessoa@exemplo.com" style="flex:1;min-width:160px;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><button type="button" id="aGuestAddBtn" class="btn-sm">+ Adicionar</button></div>
+      <div id="aGuestsList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+    </div>
     <div class="field" id="aRepeatWrap"><label>Repetir</label>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <select id="aRepeat" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><option value="nao">Não repete</option><option value="diaria">Diariamente</option><option value="semanal">Semanalmente</option><option value="quinzenal">A cada 2 semanas</option><option value="mensal">Mensalmente</option><option value="datas">Datas específicas</option></select>
@@ -285,9 +289,27 @@ var google={script:{}};
       <div class="field"><label>Horário</label><div style="display:flex;gap:8px;align-items:center"><input id="evtStart" type="time" style="flex:1"><span style="color:var(--ink-faint)">até</span><input id="evtEnd" type="time" style="flex:1"></div></div>
     </div>
     <div class="field" id="evtGuestsWrap" style="display:none"><label>Convidados atuais (marque para remover o e-mail errado)</label><div id="evtGuests" style="display:flex;flex-direction:column;gap:5px"></div></div>
+    <div class="field"><label>Adicionar convidados (e-mails)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="evtGuestAdd" type="email" placeholder="pessoa@exemplo.com" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><button type="button" id="evtGuestAddBtn" class="btn-sm">+ Adicionar</button></div>
+      <div id="evtGuestsAddList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+    </div>
+    <details id="evtNeedsWrap" style="margin:0 0 12px;border:1px solid var(--line);border-radius:10px;padding:0 12px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:10px 0">Avisar responsáveis (patrimônio, secretaria, AV…)</summary><div id="evtNeedsGroups"></div></details>
     <div class="field"><label for="evtEmail">E-mail do solicitante (corrigir / reenviar)</label><input id="evtEmail" type="email" placeholder="pessoa@exemplo.com"></div>
     <label style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;margin-bottom:14px;cursor:pointer"><input type="checkbox" id="evtSend" style="width:auto"> Convidar na agenda e enviar o e-mail de confirmação para esse endereço</label>
     <div class="dlg-actions"><button type="button" class="btn-ghost" id="evtCancel">Cancelar</button><button type="submit" class="btn-primary">Salvar na agenda</button></div>
+  </form>
+</dialog>
+
+<dialog id="scopeDialog">
+  <form method="dialog" class="dlg" style="max-width:360px">
+    <h2 id="scopeTitle">Evento recorrente</h2>
+    <p class="dsub" id="scopeSub">Este evento faz parte de uma série. A que você quer aplicar?</p>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;margin:4px 0 18px">
+      <label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="radio" name="scopeR" value="this" checked style="width:auto"> Somente este evento</label>
+      <label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="radio" name="scopeR" value="following" style="width:auto"> Este e os próximos</label>
+      <label style="display:flex;gap:9px;align-items:center;cursor:pointer"><input type="radio" name="scopeR" value="all" style="width:auto"> Todos os eventos da série</label>
+    </div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="scopeCancel">Cancelar</button><button type="button" class="btn-primary" id="scopeOk">OK</button></div>
   </form>
 </dialog>
 
@@ -439,8 +461,12 @@ function wireActions(scope){
   scope.querySelectorAll("[data-editpas]").forEach(function(b){b.onclick=function(){openPatEdit(b.getAttribute("data-editpas"));};});
   scope.querySelectorAll("[data-migrarres]").forEach(function(b){b.onclick=function(){doMigrarReserva(b.getAttribute("data-migrarres"));};});
   scope.querySelectorAll("[data-printday]").forEach(function(b){b.onclick=function(){printDay(b.getAttribute("data-printday"));};});
-  scope.querySelectorAll("[data-evtedit]").forEach(function(b){b.onclick=function(){openEvtEdit(b.getAttribute("data-evtedit"),b.getAttribute("data-evttitle"),b.getAttribute("data-evtcur"),b.getAttribute("data-evtdate"),b.getAttribute("data-evts"),b.getAttribute("data-evte"));};});
-  scope.querySelectorAll("[data-evtdel]").forEach(function(b){b.onclick=function(){var id=b.getAttribute("data-evtdel"),t=b.getAttribute("data-evttitle")||"";if(!confirm('Excluir "'+t+'" da agenda? Isso apaga o evento no Google Agenda.'))return;toast("Excluindo…");google.script.run.withSuccessHandler(function(){toast("🗑 Evento excluído da agenda");loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).excluirEvento(id);};});
+  scope.querySelectorAll("[data-evtedit]").forEach(function(b){b.onclick=function(){openEvtEdit(b.getAttribute("data-evtedit"),b.getAttribute("data-evttitle"),b.getAttribute("data-evtcur"),b.getAttribute("data-evtdate"),b.getAttribute("data-evts"),b.getAttribute("data-evte"),b.getAttribute("data-evtserie"));};});
+  scope.querySelectorAll("[data-evtdel]").forEach(function(b){b.onclick=function(){var id=b.getAttribute("data-evtdel"),t=b.getAttribute("data-evttitle")||"",serie=b.getAttribute("data-evtserie")||"";
+    function del(escopo){toast("Excluindo…");google.script.run.withSuccessHandler(function(r){toast("🗑 "+((r&&r.n>1)?(r.n+" eventos excluídos"):"Evento excluído")+" da agenda");loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).excluirEvento(id,escopo);}
+    if(serie){askScope("Excluir evento recorrente",function(escopo){del(escopo);});}
+    else{if(!confirm('Excluir "'+t+'" da agenda? Isso apaga o evento no Google Agenda.'))return;del("this");}
+  };});
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
@@ -499,6 +525,7 @@ function openAdd(){
   document.getElementById("aMotivo").value="";
   document.getElementById("aRepeat").value="nao";document.getElementById("aRepeatWeeks").value="4";document.getElementById("aRepeatWeeksWrap").style.display="none";document.getElementById("aRepeatHint").style.display="none";
   document.getElementById("aDatasWrap").style.display="none";document.getElementById("aDataAdd").value="";addDatas=[];renderDatasChips();
+  addConvidados=[];document.getElementById("aGuestAdd").value="";renderGuestChips("aGuestsList",addConvidados);
   fillAddNeeds();
   addType="reserva";addTag="dept";setSegBtns("aTypeSeg","reserva");dep.hidden=false;pas.hidden=true;applyAddType();
   var d=document.getElementById("addDialog");if(d.showModal)d.showModal();
@@ -517,24 +544,34 @@ function applyAddType(){
   document.getElementById("aAprovarWrap").style.display=isAt?"none":"flex";
   document.getElementById("aRepeatWrap").style.display=isAt?"none":"block"; // recorrência só p/ reserva
   document.getElementById("aNeedsWrap").style.display=isAt?"none":"block"; // insumos só p/ reserva
+  document.getElementById("aGuestsWrap").style.display=isAt?"none":"block"; // convidados só p/ reserva
   document.getElementById("aTitleLbl").textContent=isAt?"Nome do membro":"Título / evento";
   document.getElementById("aTitle").placeholder=isAt?"Nome de quem será atendido":"Ex.: Reunião de equipe";
   checkAddConflict();
 }
 var ADDNEEDS_DEF=[{rotulo:"Patrimônio",resp:"Patrimônio",texto:true,itens:["Cadeiras","Mesas","Outros objetos"]},{rotulo:"Audiovisual",resp:"Audiovisual",texto:true,itens:["Sistema de som","Microfone(s)","Iluminação especial"]},{rotulo:"Secretaria (café/insumos)",resp:"Secretaria",texto:true,itens:["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]}];
 function paginaInsumos(){var p=(CFG&&CFG.pagina&&CFG.pagina.insumos instanceof Array)?CFG.pagina.insumos:null;return (p&&p.length)?p:ADDNEEDS_DEF;}
-function fillAddNeeds(){var grupos=paginaInsumos(),box=document.getElementById("aNeedsGroups");var ta='width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical';
-  box.innerHTML=grupos.map(function(g,i){var it=(g.itens||[]).map(function(x){return '<label><input type="checkbox" value="'+esc(x)+'"> '+esc(x)+'</label>';}).join("");var tx=(g.texto!==false)?'<div class="field" style="margin:6px 0 4px"><label>'+esc(g.rotulo)+' — descreva</label><textarea rows="2" style="'+ta+'"></textarea></div>':'';return '<div data-group="'+i+'" data-resp="'+esc(g.resp||"")+'" data-rotulo="'+esc(g.rotulo||"")+'"><div class="nh"'+(i?'':' style="margin-top:2px"')+'>'+esc(g.rotulo)+'</div><div class="needs">'+it+'</div>'+tx+'</div>';}).join("");
-  document.getElementById("aNeedsWrap").open=false;}
-function addNeeds(){var grupos=[];document.getElementById("aNeedsGroups").querySelectorAll("[data-group]").forEach(function(sec){var itens=[];sec.querySelectorAll('input[type=checkbox]:checked').forEach(function(c){itens.push(c.value);});var t=sec.querySelector("textarea"),texto=t?t.value.trim():"";if(itens.length||texto)grupos.push({resp:sec.getAttribute("data-resp"),rotulo:sec.getAttribute("data-rotulo"),itens:itens,texto:texto});});var needs={};if(grupos.length)needs.groups=grupos;return needs;}
+function needsGroupsHtml(grupos){var ta='width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical';
+  return grupos.map(function(g,i){var it=(g.itens||[]).map(function(x){return '<label><input type="checkbox" value="'+esc(x)+'"> '+esc(x)+'</label>';}).join("");var tx=(g.texto!==false)?'<div class="field" style="margin:6px 0 4px"><label>'+esc(g.rotulo)+' — descreva</label><textarea rows="2" style="'+ta+'"></textarea></div>':'';return '<div data-group="'+i+'" data-resp="'+esc(g.resp||"")+'" data-rotulo="'+esc(g.rotulo||"")+'"><div class="nh"'+(i?'':' style="margin-top:2px"')+'>'+esc(g.rotulo)+'</div><div class="needs">'+it+'</div>'+tx+'</div>';}).join("");}
+function fillNeedsInto(id){var b=document.getElementById(id);if(b)b.innerHTML=needsGroupsHtml(paginaInsumos());}
+function collectNeeds(id){var grupos=[],box=document.getElementById(id);if(box)box.querySelectorAll("[data-group]").forEach(function(sec){var itens=[];sec.querySelectorAll('input[type=checkbox]:checked').forEach(function(c){itens.push(c.value);});var t=sec.querySelector("textarea"),texto=t?t.value.trim():"";if(itens.length||texto)grupos.push({resp:sec.getAttribute("data-resp"),rotulo:sec.getAttribute("data-rotulo"),itens:itens,texto:texto});});var needs={};if(grupos.length)needs.groups=grupos;return needs;}
+function fillAddNeeds(){fillNeedsInto("aNeedsGroups");document.getElementById("aNeedsWrap").open=false;}
+function addNeeds(){return collectNeeds("aNeedsGroups");}
+// ---- Convidados (chips) reutilizável ----
+function renderGuestChips(listId,arr){var box=document.getElementById(listId);if(!box)return;box.innerHTML=arr.map(function(m,i){return '<span class="chip" style="display:inline-flex;gap:6px;align-items:center">'+esc(m)+'<button type="button" data-rmg="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhum convidado.</span>';box.querySelectorAll("[data-rmg]").forEach(function(b){b.onclick=function(){arr.splice(+b.getAttribute("data-rmg"),1);renderGuestChips(listId,arr);};});}
+function wireGuestAdd(inputId,btnId,listId,arr){function add(){var v=(document.getElementById(inputId).value||"").trim();if(!v){return;}if(!/@/.test(v)){toast("E-mail inválido",true);return;}if(arr.indexOf(v)<0)arr.push(v);document.getElementById(inputId).value="";renderGuestChips(listId,arr);}
+  document.getElementById(btnId).onclick=add;document.getElementById(inputId).addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();add();}});}
+var addConvidados=[],evtAddConvidados=[];
 var addDatas=[];
 function renderDatasChips(){var box=document.getElementById("aDatasList");box.innerHTML=addDatas.slice().sort().map(function(d,i){return '<span class="chip" style="display:inline-flex;gap:6px;align-items:center">'+fmtD(d)+'<button type="button" data-rmdata="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rmdata]").forEach(function(b){b.onclick=function(){var s=addDatas.slice().sort();s.splice(+b.getAttribute("data-rmdata"),1);addDatas=s;renderDatasChips();};});}
 document.getElementById("aDataAddBtn").onclick=function(){var v=document.getElementById("aDataAdd").value;if(!v){toast("Escolha uma data",true);return;}if(addDatas.indexOf(v)<0)addDatas.push(v);renderDatasChips();};
+wireGuestAdd("aGuestAdd","aGuestAddBtn","aGuestsList",addConvidados);
+function expandRecPanel(base,tipo,vezes){var out=[],d=new Date(base+"T12:00:00");for(var i=0;i<vezes;i++){out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));if(tipo==="diaria")d.setDate(d.getDate()+1);else if(tipo==="semanal")d.setDate(d.getDate()+7);else if(tipo==="quinzenal")d.setDate(d.getDate()+14);else if(tipo==="mensal")d.setMonth(d.getMonth()+1);else d.setDate(d.getDate()+7);}return out;}
 document.getElementById("aRepeat").onchange=function(){
   var v=this.value, rule=(v!=="nao"&&v!=="datas"), datas=(v==="datas");
   document.getElementById("aRepeatWeeksWrap").style.display=rule?"inline-flex":"none";
   document.getElementById("aDatasWrap").style.display=datas?"block":"none";
-  var h=document.getElementById("aRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"Cria um evento por data, direto na agenda.":"A série é criada direto na agenda (já aprovada).";
+  var h=document.getElementById("aRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent="Cada ocorrência segue a caixa “Já aprovar”: marcada → vai pra agenda; desmarcada → cai em Pendentes (aprove uma a uma).";
 };
 // checa conflito de espaço+horário para a ocorrência sendo lançada (igual à página de reserva)
 function addChosen(){var sp=[];document.querySelectorAll("#aSpaceGrid input:checked").forEach(function(c){sp.push(c.value);});return sp;}
@@ -574,16 +611,20 @@ document.getElementById("addForm").addEventListener("submit",function(e){
   var apr=document.getElementById("aAprovar").checked;
   var rep=document.getElementById("aRepeat").value, weeks=parseInt(document.getElementById("aRepeatWeeks").value,10)||0;
   data.needs=addNeeds();
+  if(addConvidados.length)data.needs.convidados=addConvidados.slice();
+  // monta a lista de datas da recorrência (a data principal é sempre a 1ª ocorrência)
+  var dts=null;
   if(rep==="datas"){
     if(!addDatas.length){toast("Adicione ao menos uma data",true);return;}
-    var dts=addDatas.slice();
-    BUSY=true;toast("Criando "+dts.length+" evento(s)…");
-    google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ "+dts.length+" evento(s) criado(s) na agenda");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrenciasMultiplas(data,dts,true);
+    dts=[date].concat(addDatas);dts=dts.filter(function(d,i){return d&&dts.indexOf(d)===i;});
+  } else if(rep!=="nao"&&weeks>1){ dts=expandRecPanel(date,rep,weeks); }
+  if(dts&&dts.length>1){
+    BUSY=true;toast((apr?"Criando ":"Enviando ")+dts.length+" ocorrência(s)…");
+    google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ "+dts.length+(apr?" evento(s) na agenda":" em Pendentes (aprove uma a uma)"));document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrenciasMultiplas(data,dts,apr);
     return;
   }
-  if(rep!=="nao"&&weeks>1){ data.recorrencia={tipo:rep,vezes:weeks}; apr=true; } // série vai direto p/ agenda
   BUSY=true;toast("Salvando…");
-  google.script.run.withSuccessHandler(function(){BUSY=false;toast(data.recorrencia?("✓ Série criada ("+weeks+"x) na agenda"):(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes"));document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
+  google.script.run.withSuccessHandler(function(){BUSY=false;toast(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
 });
 
 // ===== Encaminhar atendimento (agenda) =====
@@ -600,15 +641,25 @@ function openEnc(k){
   var d=document.getElementById("encDialog");if(d.showModal)d.showModal();
 }
 // ===== Editar um evento da agenda (espaço, horário, e-mail) =====
-var evtId=null;
-function openEvtEdit(id,title,cur,date,s,e){
-  evtId=id;
+var evtId=null,evtSerie="";
+// Seletor de escopo p/ séries (Este / Este e os próximos / Todos). Sem série → 'this' direto.
+function askScope(title,cb){
+  var d=document.getElementById("scopeDialog");document.getElementById("scopeTitle").textContent=title||"Evento recorrente";
+  var r0=d.querySelector('input[value="this"]');if(r0)r0.checked=true;
+  document.getElementById("scopeOk").onclick=function(){var v=(d.querySelector('input[name=scopeR]:checked')||{}).value||"this";d.close();cb(v);};
+  document.getElementById("scopeCancel").onclick=function(){d.close();};
+  if(d.showModal)d.showModal();
+}
+function openEvtEdit(id,title,cur,date,s,e,serie){
+  evtId=id;evtSerie=serie||"";
   var cs=(cur||"").split(",").map(function(x){return x.trim();}).filter(Boolean);
   document.getElementById("evtSpaceGrid").innerHTML=cfgEspacos().map(function(x){var ck=cs.indexOf(x)>-1?" checked":"";return '<label><input type="checkbox" value="'+esc(x)+'"'+ck+'> '+esc(x)+'</label>';}).join("");
   document.getElementById("evtDate").value=(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))?date:"";
   document.getElementById("evtStart").value=s||"";document.getElementById("evtEnd").value=e||"";
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
-  document.getElementById("evtSub").textContent="Evento: "+title;
+  evtAddConvidados=[];document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);
+  fillNeedsInto("evtNeedsGroups");document.getElementById("evtNeedsWrap").open=false;
+  document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"");
   // carrega os convidados atuais para poder remover o e-mail errado
   var gw=document.getElementById("evtGuestsWrap"),gb=document.getElementById("evtGuests");
   gw.style.display="none";gb.innerHTML='<span style="font-size:12px;color:var(--ink-faint)">Carregando convidados…</span>';gw.style.display="block";
@@ -619,15 +670,19 @@ function openEvtEdit(id,title,cur,date,s,e){
   var d=document.getElementById("evtDialog");if(d.showModal)d.showModal();
 }
 document.getElementById("evtCancel").onclick=function(){document.getElementById("evtDialog").close();};
+wireGuestAdd("evtGuestAdd","evtGuestAddBtn","evtGuestsAddList",evtAddConvidados);
 document.getElementById("evtForm").addEventListener("submit",function(ev){
   ev.preventDefault();if(!evtId)return;
   var esel=[];document.querySelectorAll("#evtSpaceGrid input:checked").forEach(function(c){esel.push(c.value);});
   var rmg=[];document.querySelectorAll("#evtGuests .evtrmg:checked").forEach(function(c){rmg.push(c.value);});
   var campos={space:esel.join(", "),date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked,removerEmails:rmg};
+  if(evtAddConvidados.length)campos.addConvidados=evtAddConvidados.slice();
+  var nn=collectNeeds("evtNeedsGroups");if(nn.groups&&nn.groups.length)campos.needs=nn;
   if(campos.s&&campos.e&&toMin(campos.e)<=toMin(campos.s)){toast("Término deve ser depois do início",true);return;}
   if(campos.enviarEmail&&!campos.email){toast("Informe o e-mail para enviar a confirmação",true);return;}
-  document.getElementById("evtDialog").close();toast("Salvando na agenda…");
-  google.script.run.withSuccessHandler(function(){toast("✓ Evento atualizado"+(rmg.length?" · convidado removido":"")+(campos.enviarEmail?" · e-mail enviado":""));loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).editarEvento(evtId,campos);
+  function save(escopo){document.getElementById("evtDialog").close();toast("Salvando na agenda…");
+    google.script.run.withSuccessHandler(function(r){toast("✓ Evento atualizado"+((r&&r.n>1)?(" ("+r.n+" da série)"):"")+(rmg.length?" · convidado removido":"")+(campos.addConvidados?" · convidado(s) adicionado(s)":"")+(campos.enviarEmail?" · e-mail enviado":""));loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).editarEvento(evtId,campos,escopo);}
+  if(evtSerie){askScope("Editar evento recorrente",function(escopo){save(escopo);});}else{save("this");}
 });
 // ===== Editar atendimento =====
 var patKey=null;
@@ -747,7 +802,7 @@ function shiftCur(dir){
 
 function evAll(dk){ // só a agenda confirmada (solicitações pendentes ficam na aba Solicitações)
   var list=[];
-  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:evSpaces(c).join(", "),id:c.id||""});});
+  DATA.calendar.forEach(function(c){if(c.date===dk)list.push({t:"conf",title:c.title,s:c.s,e:c.e,space:evSpaces(c).join(", "),id:c.id||"",serie:c.serie||""});});
   return list.sort(function(a,b){return toMin(a.s)-toMin(b.s);});
 }
 function pillHtml(e){return '<div class="pill '+e.t+'">'+(e.s?'<b>'+e.s+'</b> ':'')+esc(e.title)+'</div>';}
@@ -772,8 +827,8 @@ function dayDetailHtml(dk){
   evs.forEach(function(e){
     var badge=e.t==="conf"?'<span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>':(e.t==="hit"?'<span class="chip crit">⚠ conflito</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">pedido</span>');
     var spaceChip=e.space?'<span class="chip space">'+esc(e.space)+'</span>':(e.t==="conf"?'<span class="chip crit">sem local</span>':'');
-    var editBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm" data-evtedit="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" data-evtcur="'+esc(e.space||"")+'" data-evtdate="'+esc(dk)+'" data-evts="'+esc(e.s||"")+'" data-evte="'+esc(e.e||"")+'" style="margin-left:8px">✎ Editar</button>':'';
-    var delBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm crit" data-evtdel="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" style="margin-left:4px">🗑</button>':'';
+    var editBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm" data-evtedit="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" data-evtcur="'+esc(e.space||"")+'" data-evtdate="'+esc(dk)+'" data-evts="'+esc(e.s||"")+'" data-evte="'+esc(e.e||"")+'" data-evtserie="'+esc(e.serie||"")+'" style="margin-left:8px">✎ Editar</button>':'';
+    var delBtn=(e.t==="conf"&&e.id)?'<button class="btn-sm crit" data-evtdel="'+esc(e.id)+'" data-evttitle="'+esc(e.title)+'" data-evtserie="'+esc(e.serie||"")+'" style="margin-left:4px">🗑</button>':'';
     h+='<div class="row plain"><div class="rmain"><span class="rtitle">'+esc(e.title)+'</span><span class="rmeta">'+badge+spaceChip+'</span></div><span class="rwhen mono">'+esc(e.s)+'–'+esc(e.e)+'</span>'+editBtn+delBtn+'</div>';
   });
   return h+'</div></div>';
@@ -869,8 +924,8 @@ function reservasHtml(){
   if(!list.length) return bar+summ+'<div class="empty">Nenhuma reserva para esse filtro.</div>';
   return bar+summ+'<div class="rows">'+list.map(function(c){
     var sp=evSpaces(c).length?'<span class="chip space">'+esc(evSpaces(c).join(", "))+'</span>':'<span class="chip crit">sem local</span>';
-    var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(evSpaces(c).join(", "))+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'">✎ Editar</button>':'';
-    var delBtn=c.id?'<button class="btn-sm crit" data-evtdel="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" style="margin-left:4px">🗑</button>':'';
+    var editBtn=c.id?'<button class="btn-sm" data-evtedit="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtcur="'+esc(evSpaces(c).join(", "))+'" data-evtdate="'+esc(c.date)+'" data-evts="'+esc(c.s||"")+'" data-evte="'+esc(c.e||"")+'" data-evtserie="'+esc(c.serie||"")+'">✎ Editar</button>':'';
+    var delBtn=c.id?'<button class="btn-sm crit" data-evtdel="'+esc(c.id)+'" data-evttitle="'+esc(c.title)+'" data-evtserie="'+esc(c.serie||"")+'" style="margin-left:4px">🗑</button>':'';
     return '<div class="row"><div class="rmain"><span class="rtitle">'+esc(c.title)+'</span><span class="rmeta"><span class="chip" style="color:var(--accent-ink);background:var(--accent-soft);border-color:transparent">agenda</span>'+sp+'</span></div><span class="rwhen mono">'+fmtD(c.date)+'<br>'+esc(c.s)+'–'+esc(c.e)+'</span>'+editBtn+delBtn+'</div>';
   }).join("")+'</div>';
 }
