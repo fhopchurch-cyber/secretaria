@@ -673,24 +673,26 @@ function forcarConvites_(calId, iCalUID, emails){
   }catch(err){ return false; }
 }
 
+// Um campo de e-mail do responsável pode ter VÁRIOS e-mails (separados por vírgula/;).
+function splitEmails_(s){ return String(s||'').split(/[;,]/).map(function(x){ return x.trim(); }).filter(function(x){ return /@/.test(x); }); }
 // E-mails dos responsáveis envolvidos (por grupo de insumos) que entram como CONVIDADOS na agenda.
 function emailsResponsaveisEnvolvidos_(req){
   var out = [];
   needsGroups_(req.needs).forEach(function(g){
     if(!g.itens.length && !g.texto) return;
-    var r = respByPapel_(g.resp);
-    if(r && r.email && /@/.test(r.email) && out.indexOf(r.email) < 0) out.push(r.email);
+    var r = respByPapel_(g.resp); if(!r) return;
+    splitEmails_(r.email).forEach(function(em){ if(out.indexOf(em) < 0) out.push(em); });
   });
   return out;
 }
 function notificarResponsaveis_(req){
   var quando = fmtBR_(req.date) + ' ' + (req.s||'') + '–' + (req.e||'');
   var local = (req.spaces||[]).join(', ');
-  if(req.tagPastor){ sendMail_(pastorEmail_(req.tagPastor), 'Reserva aprovada: '+req.title,
+  if(req.tagPastor){ sendMail_(splitEmails_(pastorEmail_(req.tagPastor)).join(','), 'Reserva aprovada: '+req.title,
     'Olá '+req.tagPastor+',\n\nReserva aprovada:\n'+req.title+'\n'+quando+'\nLocal: '+local+'\n\n— Central de Reservas FHOP'); }
   // Aviso ao departamento responsável (e-mail configurado no Admin > Responsáveis).
   if(req.dept){
-    var toDep = respEmail_('depart');
+    var toDep = splitEmails_(respEmail_('depart')).join(',');
     if(toDep) sendMail_(toDep, 'Reserva confirmada · '+req.dept,
       'A reserva do departamento '+req.dept+' foi confirmada.\n\n' +
       'Evento: '+req.title+'\nQuando: '+quando+'\nLocal: '+local+'\n' +
@@ -723,7 +725,8 @@ function notificarResponsaveis_(req){
       solicitante: _esc_(req.solicitante||''), contato: contatoHtml, itens: itensHtml, texto: textoHtml
     };
     var body = _tpl_(r.corpo || EMAIL_RESP_DEF, map) + (isSecret ? extrasHtml : '');
-    sendMailHtml_(r.email, (B.area||r.papel) + ' · ' + req.title, body);
+    var dest = splitEmails_(r.email).join(',');   // suporta vários e-mails no mesmo responsável
+    sendMailHtml_(dest, (B.area||r.papel) + ' · ' + req.title, body);
   });
 }
 
