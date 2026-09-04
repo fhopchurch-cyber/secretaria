@@ -44,7 +44,10 @@ function normResp_(rs){
   return rs.map(function(r){ return { papel:String(r.papel||''), nome:String(r.nome||''), email:String(r.email||''), corpo:(r.corpo!=null?String(r.corpo):'') }; });
 }
 // Cor do evento no Google Agenda por espaço (id "1".."11" das cores do Google).
-var CORES_DEF = {'Auditório':'9','Nave do Templo':'3','Sala 1':'1','Sala 2':'11','Área Gourmet':'7','Sala Verde/Estúdio':'2','Sala de reunião/atendimento':'6','Briefing':'4','Estacionamento':'8'};
+// Mapeado para a paleta renomeada da agenda FHOP: Auditório=Lavanda(1), Sala 1=Mirtilo(9),
+// Nave=Uva(3), Sala 2=Tomate(11), Área Gourmet=Pavão(7), Sala Verde=Sálvia(2),
+// Sala de reunião=Tangerina(6), Briefing=Flamingo(4), Estacionamento=Grafite(8).
+var CORES_DEF = {'Auditório':'1','Nave do Templo':'3','Sala 1':'9','Sala 2':'11','Área Gourmet':'7','Sala Verde/Estúdio':'2','Sala de reunião/atendimento':'6','Briefing':'4','Estacionamento':'8'};
 
 // Conteúdo editável da página pública de reserva. `insumos` é uma LISTA de grupos; cada grupo
 // aponta para um Responsável (por `resp` = papel) e é isso que decide o e-mail que recebe.
