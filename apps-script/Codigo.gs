@@ -247,7 +247,9 @@ function editarEvento(eventId, campos, escopo){
     if(campos.removerEmails && campos.removerEmails.length){
       campos.removerEmails.forEach(function(em){ if(em && /@/.test(em)){ try{ e.removeGuest(em); }catch(_){} } });
     }
-    if(addg.length){ var ok = forcarConvites_(cfg().fontes.agenda, e.getId(), addg); if(!ok){ addg.forEach(function(em){ try{ e.addGuest(em); }catch(_){} }); } }
+    if(addg.length){ var _mode = (campos.notificarNovos === false) ? 'none' : 'all';
+      var ok = forcarConvites_(cfg().fontes.agenda, e.getId(), addg, _mode);
+      if(!ok){ addg.forEach(function(em){ try{ e.addGuest(em); }catch(_){} }); } }
     try{ var dm = e.getStartTime(); meses[dm.getFullYear()+'-'+dm.getMonth()] = 1; }catch(_){}
   });
   // avisa os responsáveis (patrimônio/secretaria/AV) se marcados na edição — uma vez
@@ -709,7 +711,7 @@ function corEvento_(space){
   var m = cfg().cores || {}; return m[space] ? String(m[space]) : '';
 }
 // Força o e-mail de convite (mesmo p/ mesmo domínio) via API avançada do Agenda; retorna true se conseguiu.
-function forcarConvites_(calId, iCalUID, emails){
+function forcarConvites_(calId, iCalUID, emails, sendMode){
   emails = (emails||[]).filter(function(e){ return e && /@/.test(e); });
   if(!emails.length) return true;
   try{
@@ -720,7 +722,7 @@ function forcarConvites_(calId, iCalUID, emails){
     var ev = Calendar.Events.get(calId, apiId);
     var att = ev.attendees || [];
     emails.forEach(function(e){ if(!att.some(function(a){ return String(a.email||'').toLowerCase() === e.toLowerCase(); })) att.push({ email: e }); });
-    Calendar.Events.patch({ attendees: att }, calId, apiId, { sendUpdates: 'all' });
+    Calendar.Events.patch({ attendees: att }, calId, apiId, { sendUpdates: (sendMode || 'all') });
     return true;
   }catch(err){ return false; }
 }

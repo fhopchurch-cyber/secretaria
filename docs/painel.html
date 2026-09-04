@@ -292,6 +292,7 @@ var google={script:{}};
     <div class="field"><label>Adicionar convidados (e-mails)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="evtGuestAdd" type="email" placeholder="pessoa@exemplo.com" style="flex:1;min-width:150px;font:inherit;font-size:13px;padding:8px 9px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><button type="button" id="evtGuestAddBtn" class="btn-sm">+ Adicionar</button></div>
       <div id="evtGuestsAddList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:12.5px;margin-top:8px;cursor:pointer"><input type="checkbox" id="evtNotifyNew" checked style="width:auto"> Enviar convite por e-mail aos novos convidados</label>
     </div>
     <details id="evtNeedsWrap" style="margin:0 0 12px;border:1px solid var(--line);border-radius:10px;padding:0 12px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:10px 0">Avisar responsáveis (patrimônio, secretaria, AV…)</summary><div id="evtNeedsGroups"></div></details>
     <div class="field"><label for="evtEmail">E-mail do solicitante (corrigir / reenviar)</label><input id="evtEmail" type="email" placeholder="pessoa@exemplo.com"></div>
@@ -593,13 +594,20 @@ document.getElementById("aTypeSeg").onclick=function(e){var b=e.target.closest("
 document.getElementById("aCancel").onclick=function(){document.getElementById("addDialog").close();};
 document.getElementById("addForm").addEventListener("submit",function(e){
   e.preventDefault();
+  if(BUSY)return; // trava anti-duplo: se já está salvando, ignora cliques repetidos
+  // fecha o diálogo na hora e salva em segundo plano (evita duplicar e não trava a tela)
+  function fecharESalvar(msgSalvando,fn){
+    BUSY=true;document.getElementById("addDialog").close();toast(msgSalvando);
+    fn();
+  }
   if(addType==="atendimento"){
     var nome=document.getElementById("aTitle").value.trim();
     if(!nome){toast("Informe o nome do membro",true);return;}
     var asp=[];document.querySelectorAll("#aSpaceGrid input:checked").forEach(function(c){asp.push(c.value);});
     var dat={title:nome,tipo:"atendimento",dept:document.getElementById("aMotivo").value.trim(),tagPastor:document.getElementById("aPastor").value,date:document.getElementById("aDate").value||keyOf(cur),s:document.getElementById("aStart").value,e:document.getElementById("aEnd").value,spaces:asp};
-    BUSY=true;toast("Salvando…");
-    google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Atendimento adicionado");document.getElementById("addDialog").close();tab="pastoral";loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(dat,false);
+    fecharESalvar("Salvando…",function(){
+      google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ Atendimento adicionado");tab="pastoral";loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro ao salvar: "+(err.message||err),true);}).adicionarOcorrencia(dat,false);
+    });
     return;
   }
   var title=document.getElementById("aTitle").value.trim(),date=document.getElementById("aDate").value,s=document.getElementById("aStart").value,en=document.getElementById("aEnd").value;
@@ -619,12 +627,14 @@ document.getElementById("addForm").addEventListener("submit",function(e){
     dts=[date].concat(addDatas);dts=dts.filter(function(d,i){return d&&dts.indexOf(d)===i;});
   } else if(rep!=="nao"&&weeks>1){ dts=expandRecPanel(date,rep,weeks); }
   if(dts&&dts.length>1){
-    BUSY=true;toast((apr?"Criando ":"Enviando ")+dts.length+" ocorrência(s)…");
-    google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ "+dts.length+(apr?" evento(s) na agenda":" em Pendentes (aprove uma a uma)"));document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrenciasMultiplas(data,dts,apr);
+    fecharESalvar((apr?"Criando ":"Enviando ")+dts.length+" ocorrência(s)…",function(){
+      google.script.run.withSuccessHandler(function(){BUSY=false;toast("✓ "+dts.length+(apr?" evento(s) na agenda":" em Pendentes (aprove uma a uma)"));loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro ao salvar: "+(err.message||err),true);}).adicionarOcorrenciasMultiplas(data,dts,apr);
+    });
     return;
   }
-  BUSY=true;toast("Salvando…");
-  google.script.run.withSuccessHandler(function(){BUSY=false;toast(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes");document.getElementById("addDialog").close();loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
+  fecharESalvar("Salvando…",function(){
+    google.script.run.withSuccessHandler(function(){BUSY=false;toast(apr?"✓ Adicionado e aprovado (na agenda)":"✓ Adicionado em Pendentes");loadData();}).withFailureHandler(function(err){BUSY=false;toast("Erro ao salvar: "+(err.message||err),true);}).adicionarOcorrencia(data,apr);
+  });
 });
 
 // ===== Encaminhar atendimento (agenda) =====
@@ -657,7 +667,7 @@ function openEvtEdit(id,title,cur,date,s,e,serie){
   document.getElementById("evtDate").value=(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))?date:"";
   document.getElementById("evtStart").value=s||"";document.getElementById("evtEnd").value=e||"";
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
-  evtAddConvidados.length=0;document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);
+  evtAddConvidados.length=0;document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);document.getElementById("evtNotifyNew").checked=true;
   fillNeedsInto("evtNeedsGroups");document.getElementById("evtNeedsWrap").open=false;
   document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"");
   // carrega os convidados atuais para poder remover o e-mail errado
@@ -676,7 +686,7 @@ document.getElementById("evtForm").addEventListener("submit",function(ev){
   var esel=[];document.querySelectorAll("#evtSpaceGrid input:checked").forEach(function(c){esel.push(c.value);});
   var rmg=[];document.querySelectorAll("#evtGuests .evtrmg:checked").forEach(function(c){rmg.push(c.value);});
   var campos={space:esel.join(", "),date:document.getElementById("evtDate").value,s:document.getElementById("evtStart").value,e:document.getElementById("evtEnd").value,email:document.getElementById("evtEmail").value.trim(),enviarEmail:document.getElementById("evtSend").checked,removerEmails:rmg};
-  if(evtAddConvidados.length)campos.addConvidados=evtAddConvidados.slice();
+  if(evtAddConvidados.length){campos.addConvidados=evtAddConvidados.slice();campos.notificarNovos=document.getElementById("evtNotifyNew").checked;}
   var nn=collectNeeds("evtNeedsGroups");if(nn.groups&&nn.groups.length)campos.needs=nn;
   if(campos.s&&campos.e&&toMin(campos.e)<=toMin(campos.s)){toast("Término deve ser depois do início",true);return;}
   if(campos.enviarEmail&&!campos.email){toast("Informe o e-mail para enviar a confirmação",true);return;}
