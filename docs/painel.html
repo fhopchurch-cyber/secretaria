@@ -20,10 +20,24 @@ var google={script:{}};
       api[name]=function(){
         var args=[].slice.call(arguments);
         var tok=(window.AUTH||localStorage.getItem("fhop_token")||"");
-        fetch(window.EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:name,args:args,token:tok})})
-          .then(function(r){return r.json();})
-          .then(function(j){ if(j&&j.error){ if(onErr)onErr(new Error(j.error)); } else { if(onOk)onOk(j?j.result:undefined); } })
-          .catch(function(e){ if(onErr)onErr(e); });
+        var maxTry=3, delays=[0,700,1600];
+        function attempt(i){
+          fetch(window.EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:name,args:args,token:tok})})
+            .then(function(r){return r.text();})
+            .then(function(txt){
+              var j; try{ j=JSON.parse(txt); }catch(_){
+                // resposta não-JSON (interstitial do Google) — engasgou; tenta de novo
+                if(i+1<maxTry){ setTimeout(function(){attempt(i+1);}, delays[i+1]); return; }
+                if(onErr)onErr(new Error("Instabilidade momentânea do servidor. Tente de novo.")); return;
+              }
+              if(j&&j.error){ if(onErr)onErr(new Error(j.error)); } else { if(onOk)onOk(j?j.result:undefined); }
+            })
+            .catch(function(e){
+              if(i+1<maxTry){ setTimeout(function(){attempt(i+1);}, delays[i+1]); return; } // falha de rede — tenta de novo
+              if(onErr)onErr(e);
+            });
+        }
+        attempt(0);
       };
     });
     return api;
