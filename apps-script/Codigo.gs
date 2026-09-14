@@ -410,7 +410,7 @@ function getDados(){
   // Cache curto: recarregar/pollar fica instantâneo. Some ao gravar (upsertEstado_/enviarReserva).
   try{ var hit = CacheService.getScriptCache().get('dados'); if(hit) return JSON.parse(hit); }catch(_){}
   var out = _computeDados_();
-  try{ CacheService.getScriptCache().put('dados', JSON.stringify(out), 40); }catch(_){}
+  try{ CacheService.getScriptCache().put('dados', JSON.stringify(out), 90); }catch(_){}
   return out;
 }
 function invalidarCache_(){ try{ CacheService.getScriptCache().remove('dados'); }catch(_){} }

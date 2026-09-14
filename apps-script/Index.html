@@ -316,7 +316,7 @@ var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 var MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 var MESAB=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 var AUTH="<?= AUTH ?>";
-var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=60000, calView="mes", ME={email:"",admin:false}, CFG=null;
+var DATA=null, cur=new Date(), tab="mes", LAST=null, REFRESH_MS=90000, calView="mes", ME={email:"",admin:false}, CFG=null;
 
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function overlap(a,b){return a.date===b.date&&a.s&&a.e&&b.s&&b.e&&toMin(a.s)<toMin(b.e)&&toMin(b.s)<toMin(a.e);}
@@ -1160,7 +1160,15 @@ function loadData(){
 google.script.run.withSuccessHandler(function(m){ME=m||ME; var el=document.getElementById("meLabel"); if(el)el.textContent=ME.email?(ME.email+(ME.admin?" · Administrador":"")):"";}).getMe(AUTH);
 google.script.run.withSuccessHandler(function(c){CFG=c;}).getConfig();
 loadData();
-setInterval(loadData, REFRESH_MS); // relê sozinho — novos pedidos aparecem em qualquer dispositivo
+// auto-refresh inteligente: não recarrega à toa (economiza e não atropela o que você faz)
+function autoRefresh(){
+  if(document.hidden) return;                          // aba em segundo plano
+  if(BUSY) return;                                     // salvando algo
+  if(document.querySelector("dialog[open]")) return;   // diálogo aberto (não perde seleção)
+  loadData();
+}
+setInterval(autoRefresh, REFRESH_MS);
+document.addEventListener("visibilitychange", function(){ if(!document.hidden && !BUSY) loadData(); }); // ao voltar pra aba, atualiza na hora
 </script>
 </body>
 </html>
