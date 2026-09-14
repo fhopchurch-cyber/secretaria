@@ -188,7 +188,7 @@ var DEPARTS=["RESET","XTRA","ROCKTES","KIDS","ENCONTRO DELAS","HOMENS","PROFÉTI
 var PASTORES=["Shalon","Camila","Cleber","Letícia","Vinicius","Emilaine","William","Nathalie","Hamilton","Brenon","Fernanda"];
 var NEEDS={"Patrimônio":["Cadeiras","Mesas","Outros objetos"],"Audiovisual":["Sistema de som","Microfone(s)","Iluminação especial"],"Secretaria (café/insumos)":["Chaleira Elétrica","Garrafa Térmica","Café","Açúcar","Copos descartáveis","Geladeira","Projetor","Telão/Quadro"]};
 
-var OCUP=null;
+var OCUP=null, OCUPERR=false;
 function id(x){return document.getElementById(x);}
 function toMin(h){var p=(h||"0:0").split(":");return (+p[0])*60+(+p[1]);}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
@@ -248,7 +248,8 @@ function checkConflict(){
   var b=id("banner"),date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
   b.className="banner";
   if(!date||!s||!en||toMin(en)<=toMin(s)||!sp.length){b.classList.remove("show");return;}
-  if(OCUP===null){b.classList.add("show","wait");b.textContent="Checando disponibilidade…";return;}
+  if(OCUP===null && !OCUPERR){b.classList.add("show","wait");b.textContent="Checando disponibilidade…";return;}
+  if(OCUPERR){b.classList.add("show");b.innerHTML="Não deu para checar a disponibilidade agora.<span class='bsub'>Você pode enviar mesmo assim — a secretaria confere na aprovação.</span>";return;}
   var probe={date:date,s:s,e:en};
   var hits=OCUP.filter(function(o){return o.date===probe.date && sp.indexOf(o.space)>-1 && toMin(probe.s)<toMin(o.e) && toMin(o.s)<toMin(probe.e);});
   b.classList.add("show");
@@ -262,8 +263,16 @@ function checkConflict(){
 ["rDate","rStart","rEnd"].forEach(function(x){id(x).addEventListener("input",checkConflict);});
 rSpaceGrid.addEventListener("change",checkConflict);
 
-// busca a ocupação confirmada (só espaço+horário, sem nomes)
-google.script.run.withSuccessHandler(function(o){OCUP=o||[];checkConflict();}).withFailureHandler(function(){OCUP=[];}).getOcupacao();
+// busca a ocupação confirmada (só espaço+horário, sem nomes) — com re-tentativa se falhar
+function loadOcup(tentativa){
+  tentativa=tentativa||0;
+  google.script.run.withSuccessHandler(function(o){OCUP=o||[];OCUPERR=false;checkConflict();})
+    .withFailureHandler(function(){
+      if(tentativa<2){setTimeout(function(){loadOcup(tentativa+1);},1500);return;} // tenta de novo antes de desistir
+      OCUPERR=true;OCUP=[];checkConflict(); // não trava no "Checando…"; libera o envio
+    }).getOcupacao();
+}
+loadOcup();
 // ===== Login da secretaria (GitHub Pages) =====
 var lgDlg=id("loginDialog");
 function lgErr(m){var e=id("lgErr");e.textContent=m;e.style.display=m?"block":"none";}
