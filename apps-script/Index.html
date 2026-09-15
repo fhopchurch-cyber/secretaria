@@ -444,6 +444,7 @@ function wireActions(scope){
   scope.querySelectorAll("[data-reabrirfin]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-reabrirfin");var p=PAS[k];if(p){p.finalizado=false;render();}toast("↩ Reaberto");_bg("finalizarAtendimento",k,false);};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
+  scope.querySelectorAll("#pasView button").forEach(function(b){b.onclick=function(){window._pasView=b.getAttribute("data-pv");var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);};});
   var rlp=scope.querySelector("#relPeriodo");
   if(rlp)rlp.onchange=function(){window._relPeriodo=rlp.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var d=document.querySelector("#relPeriodo");if(d){var det=d.closest("details");if(det)det.open=true;}};
   var rpr=scope.querySelector("#relPrint");
@@ -989,18 +990,21 @@ function printRelatorio(){
 function pastoralHtml(){
   var all=DATA.pastoral.filter(function(p){return p.status!=="excluido";});
   var q=(window._pasQ||"").toLowerCase();
-  var list=all.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
-  var aguard=all.filter(function(p){return !p.status||p.status==="pendente";}).length;
+  var view=window._pasView==="final"?"final":"ativos";
+  var aguard=all.filter(function(p){return !p.finalizado&&(!p.status||p.status==="pendente");}).length;
   var fin=all.filter(function(p){return p.finalizado;}).length;
   var enc=all.filter(function(p){return p.status==="encaminhado"&&!p.finalizado;}).length;
   var rep=relatorioHtml();
+  var subtabs='<div class="seg" id="pasView" style="max-width:360px;margin:0 0 12px"><button type="button" data-pv="ativos" aria-pressed="'+(view==="ativos"?"true":"false")+'">Ativos ('+(aguard+enc)+')</button><button type="button" data-pv="final" aria-pressed="'+(view==="final"?"true":"false")+'">Finalizados ('+fin+')</button></div>';
+  var pool=all.filter(function(p){return view==="final"?p.finalizado:!p.finalizado;});
+  var list=pool.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
   var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)'+(fin?' · '+fin+' finalizado(s)':'')+'</span></div>';
-  if(!list.length)return rep+bar+'<div class="empty">Nenhum atendimento.</div>';
+  if(!list.length)return rep+subtabs+bar+'<div class="empty">'+(view==="final"?"Nenhum atendimento finalizado.":"Nenhum atendimento ativo.")+'</div>';
   // aguardando primeiro, depois encaminhados
   // ordem: aguardando (0) → encaminhado (1) → finalizado (2)
   function ordP(p){return p.finalizado?2:(p.status==="encaminhado"?1:0);}
   list.sort(function(a,b){return ordP(a)-ordP(b);});
-  return rep+bar+bulkBar()+'<div class="rows">'+list.map(function(p){
+  return rep+subtabs+bar+bulkBar()+'<div class="rows">'+list.map(function(p){
     var st=p.status||"pendente";
     var isEnc=st==="encaminhado";
     var isFin=!!p.finalizado;
