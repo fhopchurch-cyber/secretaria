@@ -292,7 +292,8 @@ function _apiMap_(){
     editar:editar, editarAtendimento:editarAtendimento, encaminhar:encaminhar, encaminharComAgenda:encaminharComAgenda,
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
-    migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva
+    migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva,
+    finalizarAtendimento:finalizarAtendimento
   };
 }
 function apiCall_(fn, args, token){
@@ -547,6 +548,7 @@ function _computeDados_(){
     if(st){ p.status = st.status || 'pendente'; p.pastor = st.pastor;
       if(st.override){ var o = st.override;
         ['nome','motivo','telefone','email','disp'].forEach(function(f){ if(o[f]!=null && o[f]!=='') p[f] = o[f]; });
+        if(o.finalizado) p.finalizado = true;
         p.editado = true;
       }
     } else p.status = 'pendente';
@@ -888,6 +890,15 @@ function readEstado_(){
     map[row[0]] = { status: row[1], pastor: row[2], eventId: row[3], override: ov };
   }
   return map;
+}
+/** Marca (ou desmarca) um atendimento como FINALIZADO, sem perder o status/encaminhamento. */
+function finalizarAtendimento(key, done){
+  if(!key) throw new Error('Atendimento inválido.');
+  var est = readEstado_(), cur = est[key] || {};
+  var ov = (cur.override && typeof cur.override === 'object') ? cur.override : {};
+  ov.finalizado = (done !== false);
+  upsertEstado_(key, { override: ov });
+  return { ok:true };
 }
 
 // upsert por key — aplica só os campos passados em patch, preserva o resto

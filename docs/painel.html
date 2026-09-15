@@ -12,7 +12,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva","finalizarAtendimento"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -483,6 +483,8 @@ function wireActions(scope){
     else{if(!confirm('Excluir "'+t+'" da agenda? Isso apaga o evento no Google Agenda.'))return;del("this");}
   };});
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
+  scope.querySelectorAll("[data-finalizar]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-finalizar");var p=PAS[k];if(p){p.finalizado=true;render();}toast("✔ Atendimento finalizado");_bg("finalizarAtendimento",k,true);};});
+  scope.querySelectorAll("[data-reabrirfin]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-reabrirfin");var p=PAS[k];if(p){p.finalizado=false;render();}toast("↩ Reaberto");_bg("finalizarAtendimento",k,false);};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
   var rlp=scope.querySelector("#relPeriodo");
@@ -704,8 +706,28 @@ document.getElementById("evtForm").addEventListener("submit",function(ev){
   var nn=collectNeeds("evtNeedsGroups");if(nn.groups&&nn.groups.length)campos.needs=nn;
   if(campos.s&&campos.e&&toMin(campos.e)<=toMin(campos.s)){toast("Término deve ser depois do início",true);return;}
   if(campos.enviarEmail&&!campos.email){toast("Informe o e-mail para enviar a confirmação",true);return;}
-  function save(escopo){document.getElementById("evtDialog").close();toast("Salvando na agenda…");
-    google.script.run.withSuccessHandler(function(r){toast("✓ Evento atualizado"+((r&&r.n>1)?(" ("+r.n+" da série)"):"")+(rmg.length?" · convidado removido":"")+(campos.addConvidados?" · convidado(s) adicionado(s)":"")+(campos.enviarEmail?" · e-mail enviado":""));loadData();}).withFailureHandler(function(err){toast("Erro: "+(err.message||err),true);}).editarEvento(evtId,campos,escopo);}
+  function save(escopo){
+    document.getElementById("evtDialog").close();
+    toast("✓ Evento atualizado"+(rmg.length?" · convidado removido":"")+(campos.addConvidados?" · convidado(s) adicionado(s)":"")+(campos.enviarEmail?" · e-mail enviado":""));
+    // patch otimista: reflete a mudança na hora (não espera 5-10s do servidor)
+    try{
+      var cl=(DATA&&DATA.calendar)||[];
+      var clicked=cl.filter(function(c){return c.id===evtId;})[0];
+      var refDate=clicked?clicked.date:null;
+      var alvo=(evtSerie&&escopo&&escopo!=="this")
+        ? cl.filter(function(c){return c.serie===evtSerie&&(escopo==="all"||(refDate&&c.date>=refDate));})
+        : (clicked?[clicked]:[]);
+      var novoSp=campos.space?campos.space.split(",").map(function(x){return x.trim();}).filter(Boolean):null;
+      alvo.forEach(function(c){
+        if(novoSp){c.spaces=novoSp;c.space=novoSp[0];}
+        if(campos.s){c.s=campos.s;} if(campos.e){c.e=campos.e;}
+        if(alvo.length===1&&campos.date){c.date=campos.date;}
+      });
+      render();
+    }catch(_){}
+    // sincroniza com o servidor em segundo plano
+    google.script.run.withSuccessHandler(function(){loadData();}).withFailureHandler(function(err){toast("Erro ao salvar: "+(err.message||err),true);loadData();}).editarEvento(evtId,campos,escopo);
+  }
   if(evtSerie){askScope("Editar evento recorrente",function(escopo){save(escopo);});}else{save("this");}
 });
 // ===== Editar atendimento =====
@@ -1013,20 +1035,28 @@ function pastoralHtml(){
   var q=(window._pasQ||"").toLowerCase();
   var list=all.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
   var aguard=all.filter(function(p){return !p.status||p.status==="pendente";}).length;
-  var enc=all.filter(function(p){return p.status==="encaminhado";}).length;
+  var fin=all.filter(function(p){return p.finalizado;}).length;
+  var enc=all.filter(function(p){return p.status==="encaminhado"&&!p.finalizado;}).length;
   var rep=relatorioHtml();
-  var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)</span></div>';
+  var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)'+(fin?' · '+fin+' finalizado(s)':'')+'</span></div>';
   if(!list.length)return rep+bar+'<div class="empty">Nenhum atendimento.</div>';
   // aguardando primeiro, depois encaminhados
-  list.sort(function(a,b){var sa=a.status==="encaminhado"?1:0,sb=b.status==="encaminhado"?1:0;return sa-sb;});
+  // ordem: aguardando (0) → encaminhado (1) → finalizado (2)
+  function ordP(p){return p.finalizado?2:(p.status==="encaminhado"?1:0);}
+  list.sort(function(a,b){return ordP(a)-ordP(b);});
   return rep+bar+bulkBar()+'<div class="rows">'+list.map(function(p){
     var st=p.status||"pendente";
     var isEnc=st==="encaminhado";
-    var chip=isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>';
-    var acts=isEnc
-      ? '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
+    var isFin=!!p.finalizado;
+    var chip=isFin
+      ? '<span class="chip" style="color:var(--ink-soft);background:var(--surface-2);border-color:var(--line-strong)">✔ Finalizado'+(p.pastor?" · "+esc(p.pastor):"")+'</span>'
+      : (isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>');
+    var acts=isFin
+      ? '<div class="rowactions"><button class="btn-sm" data-reabrirfin="'+esc(p.key)+'" title="Reabrir (volta para encaminhado)">↩ Reabrir</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
+      : isEnc
+      ? '<div class="rowactions"><button class="btn-sm ok" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado">✓ Finalizar</button><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-migrarres="'+esc(p.key)+'" title="Era uma reserva? Volta para a aba Solicitações.">→ Reserva</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
-    return '<div class="row'+(isEnc?' aprovado':'')+'"><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
+    return '<div class="row'+(isEnc?' aprovado':'')+'"'+(isFin?' style="opacity:.62"':'')+'><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
   }).join("")+'</div>';
 }
 
