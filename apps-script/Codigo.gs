@@ -891,13 +891,17 @@ function readEstado_(){
   }
   return map;
 }
-/** Marca (ou desmarca) um atendimento como FINALIZADO, sem perder o status/encaminhamento. */
-function finalizarAtendimento(key, done){
+/** Marca (ou desmarca) um atendimento como FINALIZADO, sem perder o status/encaminhamento.
+ *  `pastor` (opcional): atribui quem atendeu — só para o relatório, SEM criar evento nem e-mail.
+ *  (undefined = não mexe no pastor; string vazia = limpa; nome = atribui). */
+function finalizarAtendimento(key, done, pastor){
   if(!key) throw new Error('Atendimento inválido.');
   var est = readEstado_(), cur = est[key] || {};
   var ov = (cur.override && typeof cur.override === 'object') ? cur.override : {};
   ov.finalizado = (done !== false);
-  upsertEstado_(key, { override: ov });
+  var patch = { override: ov };
+  if(pastor !== undefined && pastor !== null){ patch.pastor = String(pastor || ''); }
+  upsertEstado_(key, patch);
   return { ok:true };
 }
 

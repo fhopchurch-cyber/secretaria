@@ -328,6 +328,15 @@ var google={script:{}};
   </form>
 </dialog>
 
+<dialog id="finDialog">
+  <form method="dialog" class="dlg" style="max-width:390px">
+    <h2 id="finTitle">Finalizar atendimento</h2>
+    <p class="dsub">Marque como concluído. Se um pastor atendeu, informe abaixo para contar no relatório — <b>não</b> cria evento na agenda nem envia e-mail.</p>
+    <div class="field"><label for="finPastor">Pastor que atendeu (opcional)</label><select id="finPastor" style="width:100%;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></select></div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="finCancel">Cancelar</button><button type="button" class="btn-primary" id="finOk">Salvar</button></div>
+  </form>
+</dialog>
+
 <dialog id="patDialog">
   <form method="dialog" class="dlg" id="patForm">
     <h2>Editar atendimento</h2>
@@ -483,7 +492,8 @@ function wireActions(scope){
     else{if(!confirm('Excluir "'+t+'" da agenda? Isso apaga o evento no Google Agenda.'))return;del("this");}
   };});
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
-  scope.querySelectorAll("[data-finalizar]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-finalizar");var p=PAS[k];if(p){p.finalizado=true;render();}toast("✔ Atendimento finalizado");_bg("finalizarAtendimento",k,true);};});
+  scope.querySelectorAll("[data-finalizar]").forEach(function(b){b.onclick=function(){openFin(b.getAttribute("data-finalizar"));};});
+  scope.querySelectorAll("[data-finpastor]").forEach(function(b){b.onclick=function(){openFin(b.getAttribute("data-finpastor"));};});
   scope.querySelectorAll("[data-reabrirfin]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-reabrirfin");var p=PAS[k];if(p){p.finalizado=false;render();}toast("↩ Reaberto");_bg("finalizarAtendimento",k,false);};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
@@ -731,6 +741,23 @@ document.getElementById("evtForm").addEventListener("submit",function(ev){
   }
   if(evtSerie){askScope("Editar evento recorrente",function(escopo){save(escopo);});}else{save("this");}
 });
+// ===== Finalizar atendimento (com atribuição de pastor, sem reencaminhar) =====
+var finKey=null;
+function openFin(k){
+  finKey=k;var p=PAS[k];
+  var sel=document.getElementById("finPastor");sel.innerHTML='<option value="">(nenhum — não conta no relatório)</option>';cfgPastores().forEach(function(x){sel.add(new Option(x,x));});
+  try{sel.value=(p&&p.pastor)||"";}catch(_){}
+  document.getElementById("finTitle").textContent=(p&&p.finalizado)?"Pastor que atendeu":"Finalizar atendimento";
+  var d=document.getElementById("finDialog");if(d.showModal)d.showModal();
+}
+document.getElementById("finCancel").onclick=function(){document.getElementById("finDialog").close();};
+document.getElementById("finOk").onclick=function(){
+  var k=finKey;if(!k)return;var pastor=document.getElementById("finPastor").value;
+  var p=PAS[k];if(p){p.finalizado=true;p.pastor=pastor;render();}
+  document.getElementById("finDialog").close();
+  toast(pastor?("✔ Finalizado · "+pastor):"✔ Finalizado");
+  google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();}).finalizarAtendimento(k,true,pastor);
+};
 // ===== Editar atendimento =====
 var patKey=null;
 function openPatEdit(k){
@@ -1005,7 +1032,7 @@ function conflitosHtml(){
 var MESN=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 function mesLabel(ym){var p=String(ym).split("-");return (MESN[(+p[1])-1]||"?")+"/"+p[0];}
 function relDados(){
-  var enc=DATA.pastoral.filter(function(p){return p.status==="encaminhado"&&p.pastor;});
+  var enc=DATA.pastoral.filter(function(p){return p.pastor&&(p.status==="encaminhado"||p.finalizado);});
   var mesesObj={};enc.forEach(function(p){var m=String(p.date||"").slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mesesObj[m]=1;});
   var meses=Object.keys(mesesObj).sort().reverse();
   var per=window._relPeriodo||"total";if(per!=="total"&&meses.indexOf(per)<0)per="total";
@@ -1057,7 +1084,7 @@ function pastoralHtml(){
       ? '<span class="chip" style="color:var(--ink-soft);background:var(--surface-2);border-color:var(--line-strong)">✔ Finalizado'+(p.pastor?" · "+esc(p.pastor):"")+'</span>'
       : (isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>');
     var acts=isFin
-      ? '<div class="rowactions"><button class="btn-sm" data-reabrirfin="'+esc(p.key)+'" title="Reabrir (volta para encaminhado)">↩ Reabrir</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
+      ? '<div class="rowactions"><button class="btn-sm" data-finpastor="'+esc(p.key)+'" title="Atribuir/alterar o pastor que atendeu (só para o relatório)">👤 Pastor'+(p.pastor?": "+esc(p.pastor):"")+'</button><button class="btn-sm" data-reabrirfin="'+esc(p.key)+'" title="Reabrir">↩ Reabrir</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : isEnc
       ? '<div class="rowactions"><button class="btn-sm ok" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado">✓ Finalizar</button><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado (sem encaminhar)">✓ Finalizar</button><button class="btn-sm" data-migrarres="'+esc(p.key)+'" title="Era uma reserva? Volta para a aba Solicitações.">→ Reserva</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
