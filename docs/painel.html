@@ -20,7 +20,9 @@ var google={script:{}};
       api[name]=function(){
         var args=[].slice.call(arguments);
         var tok=(window.AUTH||localStorage.getItem("fhop_token")||"");
-        var maxTry=3, delays=[0,700,1600];
+        // só REPETE leituras (idempotentes). Envios/gravações não podem repetir (duplicariam).
+        var SAFE_RETRY={getOcupacao:1,getPagina:1,getDados:1,getConfig:1,getMe:1,getSelfUrl:1,getAgendaMes:1,getConvidados:1,getEspacosNaoReconhecidos:1};
+        var maxTry=SAFE_RETRY[name]?3:1, delays=[0,700,1600];
         function attempt(i){
           fetch(window.EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:name,args:args,token:tok})})
             .then(function(r){return r.text();})

@@ -589,14 +589,23 @@ function colExact(headers, name){ for(var i=0;i<headers.length;i++){ if(String(h
 /** Reserva feita na página pública → cai na fila de Pendentes. */
 function enviarReserva(data){
   if(!data || !data.title || !data.date) throw new Error('Preencha título e data.');
-  var sh = getSolic_();
-  var key = 'W-' + (new Date().getTime()) + '-' + Math.floor(Math.random()*1000);
-  var quando = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-  sh.appendRow([key, quando, data.title, data.tipo||'reserva', data.dept||'', data.tagPastor||'',
-    data.solicitante||'', data.email||'', data.date, data.s||'', data.e||'',
-    (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
-  invalidarCache_();
-  return { ok:true, key:key };
+  // Anti-duplicata: bloqueia reserva IDÊNTICA reenviada na mesma janela (clique repetido, retry, engasgo).
+  var fp = [data.solicitante||'', data.title||'', data.date||'', data.s||'', data.e||'', (data.spaces||[]).join('|'), data.tipo||''].join('~');
+  var ck = 'dup-' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, fp));
+  var lock = LockService.getScriptLock();
+  try{ lock.waitLock(8000); }catch(_){}
+  try{
+    try{ if(CacheService.getScriptCache().get(ck)) return { ok:true, dedup:true }; }catch(_){}
+    var sh = getSolic_();
+    var key = 'W-' + (new Date().getTime()) + '-' + Math.floor(Math.random()*1000);
+    var quando = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+    sh.appendRow([key, quando, data.title, data.tipo||'reserva', data.dept||'', data.tagPastor||'',
+      data.solicitante||'', data.email||'', data.date, data.s||'', data.e||'',
+      (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
+    try{ CacheService.getScriptCache().put(ck, '1', 90); }catch(_){}   // 90s: reenvio idêntico é ignorado
+    invalidarCache_();
+    return { ok:true, key:key };
+  } finally { try{ lock.releaseLock(); }catch(_){} }
 }
 
 /** Página pública: reserva em VÁRIAS datas específicas → cria uma solicitação (pendente) por data. */
