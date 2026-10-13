@@ -101,6 +101,41 @@ var google={script:{}};
   .mchip .dot{width:8px;height:8px;border-radius:2px;flex:none}
   .mchip .tm{font-family:"IBM Plex Mono",monospace;color:var(--ink-faint);font-size:10px}
   .mmore{font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+  /* ===== semana (lista legível por dia) ===== */
+  .wk{display:grid;grid-template-columns:repeat(7,minmax(132px,1fr));overflow-x:auto}
+  .wkday{border-left:1px solid var(--line);min-width:0}
+  .wkday:first-child{border-left:0}
+  .wkday.wknow{background:var(--accent-soft)}
+  .wkhead{position:sticky;top:0;z-index:2;background:inherit;border-bottom:1px solid var(--line);text-align:center;padding:9px 4px}
+  .wkday.wknow .wkhead{background:var(--accent-soft)}
+  .wkhead .wd{display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  .wkhead .dn{display:block;font-family:Archivo,sans-serif;font-weight:800;font-size:18px;color:var(--ink);line-height:1.2}
+  .wkhead.isto .dn{color:#fff;background:var(--accent);border-radius:999px;width:30px;height:30px;line-height:30px;margin:2px auto 0}
+  .wklist{padding:7px 6px;display:flex;flex-direction:column;gap:6px;min-height:40px}
+  .wkcard{border-radius:8px;padding:6px 8px 6px 9px;background:var(--surface-2);border-left:4px solid var(--c);cursor:default}
+  .wkcard .tm{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+  .wkcard .nm{font-size:12.5px;font-weight:600;color:var(--ink);line-height:1.25;margin-top:1px;word-break:break-word}
+  .wkempty{font-size:11.5px;color:var(--ink-faint);padding:6px 4px;text-align:center}
+  /* ===== painel do dia (cascata) ===== */
+  .sheet-ov{position:fixed;inset:0;z-index:50;background:rgba(10,12,14,.5);display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fade .15s ease}
+  .sheet-ov[hidden]{display:none}
+  @media(min-width:620px){.sheet-ov{align-items:center;padding:20px}}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{background:var(--surface);width:100%;max-width:440px;max-height:82vh;border-radius:18px 18px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;animation:slide .2s cubic-bezier(.22,1,.36,1)}
+  @media(min-width:620px){.sheet{border-radius:18px}}
+  @keyframes slide{from{transform:translateY(24px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+  .sheet-wd{font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  .sheet-ttl{font-family:Archivo,sans-serif;font-weight:800;font-size:19px;letter-spacing:-.01em;text-transform:capitalize}
+  .sheet-x{flex:none;width:32px;height:32px;border:1px solid var(--line-strong);background:var(--surface);border-radius:9px;cursor:pointer;color:var(--ink-soft);font-size:14px}
+  .sheet-body{overflow-y:auto;padding:10px 14px 18px}
+  .drow{display:flex;align-items:center;gap:11px;padding:10px 6px;border-bottom:1px solid var(--line)}
+  .drow:last-child{border-bottom:0}
+  .drow .bar{width:5px;align-self:stretch;min-height:34px;border-radius:3px;flex:none}
+  .drow .tm{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+  .drow .nm{font-size:14.5px;font-weight:600;color:var(--ink)}
+  .mcell{cursor:pointer}
+  .mcell:hover:not(.out){background:var(--accent-soft)}
   .empty{padding:48px 18px;text-align:center;color:var(--ink-faint);font-size:13.5px}
   .foot{margin:16px 2px 30px;font-size:12px;color:var(--ink-faint);line-height:1.6}
   .foot a{color:var(--accent-ink);text-decoration:none;font-weight:600}
@@ -142,6 +177,17 @@ var google={script:{}};
   <div class="card" id="view"><div class="empty"><span class="spin"></span>Carregando ocupação…</div></div>
 
   <p class="foot" id="foot"></p>
+</div>
+
+<!-- painel do dia (cascata) -->
+<div class="sheet-ov" id="dayOv" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="daySheetTitle">
+    <div class="sheet-head">
+      <div><div class="sheet-wd" id="daySheetWd"></div><div class="sheet-ttl" id="daySheetTitle"></div></div>
+      <button type="button" class="sheet-x" id="daySheetClose" aria-label="Fechar">✕</button>
+    </div>
+    <div class="sheet-body" id="daySheetBody"></div>
+  </div>
 </div>
 
 <script>
@@ -240,17 +286,22 @@ function renderDia(){
 }
 
 function renderSemana(){
-  var ini=mondayOf(ANCHOR), dias=[];for(var i=0;i<7;i++)dias.push(iso(addDays(ini,i)));
-  var f=faixaHoras(dias), hojeI=iso(new Date());
-  var g='<div class="grid" style="grid-template-columns:48px repeat(7,minmax(90px,1fr))">';
-  g+='<div class="gcol axis"><div class="ghead">&nbsp;</div><div class="lane">'+elHoras(f.lo,f.hi,true)+'</div></div>';
+  var ini=mondayOf(ANCHOR), hojeI=iso(new Date());
+  var g='<div class="wk">';
   for(var d=0;d<7;d++){
-    var dt=addDays(ini,d),isHoje=dias[d]===hojeI;
-    var head='<div class="ghead'+(isHoje?' isto':'')+'"><span class="wd">'+WD[dt.getDay()]+'</span><span class="dn">'+dt.getDate()+'</span></div>';
-    g+=colDia(dias[d],f.lo,f.hi,true,head);
+    var dt=addDays(ini,d),isoD=iso(dt),isHoje=isoD===hojeI,evs=evsDoDia(isoD);
+    g+='<div class="wkday'+(isHoje?' wknow':'')+'" data-day="'+isoD+'">';
+    g+='<div class="wkhead'+(isHoje?' isto':'')+'"><span class="wd">'+WD[dt.getDay()]+'</span><span class="dn">'+dt.getDate()+'</span></div>';
+    g+='<div class="wklist">';
+    if(!evs.length){g+='<div class="wkempty">livre</div>';}
+    else evs.forEach(function(ev){
+      g+='<div class="wkcard" style="--c:'+corDe(ev.space)+'"><div class="tm">'+ev.s+'–'+ev.e+'</div><div class="nm">'+esc(ev.space)+'</div></div>';
+    });
+    g+='</div></div>';
   }
   g+='</div>';
-  document.getElementById("view").innerHTML=g;
+  var v=document.getElementById("view");v.innerHTML=g;
+  v.querySelectorAll(".wkday").forEach(function(el){el.onclick=function(){openDay(el.getAttribute("data-day"));};});
 }
 
 function renderMes(){
@@ -262,7 +313,7 @@ function renderMes(){
   for(var i=0;i<42;i++){
     var dt=addDays(ini,i),isoD=iso(dt),out=dt.getMonth()!==mesAtual,isHoje=isoD===hojeI;
     var evs=evsDoDia(isoD);
-    g+='<div class="mcell'+(out?' out':'')+(isHoje?' isto':'')+'">';
+    g+='<div class="mcell'+(out?' out':'')+(isHoje?' isto':'')+'" data-day="'+isoD+'">';
     g+='<div class="dn">'+dt.getDate()+'</div>';
     var lim=Math.min(evs.length,4);
     for(var k=0;k<lim;k++){
@@ -274,8 +325,29 @@ function renderMes(){
     if(i>=34 && dt.getMonth()!==mesAtual && addDays(ini,i+1).getMonth()!==mesAtual && i%7===6)break;
   }
   g+='</div>';
-  document.getElementById("view").innerHTML=g;
+  var v=document.getElementById("view");v.innerHTML=g;
+  v.querySelectorAll(".mcell").forEach(function(el){el.onclick=function(){openDay(el.getAttribute("data-day"));};});
 }
+
+/* ===================== painel do dia (cascata) ===================== */
+function openDay(isoD){
+  if(!isoD)return;
+  var evs=evsDoDia(isoD);
+  var p=isoD.split("-"), dt=new Date(+p[0],+p[1]-1,+p[2]);
+  document.getElementById("daySheetWd").textContent=WDL[dt.getDay()];
+  document.getElementById("daySheetTitle").textContent=dt.getDate()+" de "+MES[dt.getMonth()];
+  var b=document.getElementById("daySheetBody");
+  if(!evs.length){b.innerHTML='<div class="empty" style="padding:30px 10px">Nenhum espaço reservado neste dia.</div>';}
+  else b.innerHTML=evs.map(function(ev){
+    return '<div class="drow"><span class="bar" style="background:'+corDe(ev.space)+'"></span>'
+      +'<span class="tm">'+ev.s+'–'+ev.e+'</span><span class="nm">'+esc(ev.space)+'</span></div>';
+  }).join("");
+  document.getElementById("dayOv").hidden=false;
+}
+function closeDay(){document.getElementById("dayOv").hidden=true;}
+document.getElementById("daySheetClose").onclick=closeDay;
+document.getElementById("dayOv").addEventListener("click",function(e){if(e.target===this)closeDay();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeDay();});
 
 function render(){
   if(!LOADED){return;}
