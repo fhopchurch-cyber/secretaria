@@ -22,7 +22,7 @@ var google={script:{}};
         var tok=(window.AUTH||localStorage.getItem("fhop_token")||"");
         // Repete por padrão (recupera engasgo do Google). NÃO repete os "criadores" não-idempotentes
         // (criariam duplicata). enviarReserva tem dedup no servidor e aprovar é idempotente → podem repetir.
-        var NO_RETRY={adicionarOcorrencia:1,adicionarOcorrenciasMultiplas:1,encaminhar:1,encaminharComAgenda:1};
+        var NO_RETRY={encaminhar:1,encaminharComAgenda:1};
         var maxTry=NO_RETRY[name]?1:3, delays=[0,700,1600];
         function attempt(i){
           fetch(window.EXEC_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:name,args:args,token:tok})})

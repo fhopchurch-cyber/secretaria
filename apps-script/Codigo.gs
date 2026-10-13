@@ -595,14 +595,14 @@ function enviarReserva(data){
   var lock = LockService.getScriptLock();
   try{ lock.waitLock(8000); }catch(_){}
   try{
-    try{ if(CacheService.getScriptCache().get(ck)) return { ok:true, dedup:true }; }catch(_){}
+    try{ var _hit = CacheService.getScriptCache().get(ck); if(_hit) return { ok:true, dedup:true, key:_hit }; }catch(_){}
     var sh = getSolic_();
     var key = 'W-' + (new Date().getTime()) + '-' + Math.floor(Math.random()*1000);
     var quando = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
     sh.appendRow([key, quando, data.title, data.tipo||'reserva', data.dept||'', data.tagPastor||'',
       data.solicitante||'', data.email||'', data.date, data.s||'', data.e||'',
       (data.spaces||[]).join(', '), data.needs?JSON.stringify(data.needs):'']);
-    try{ CacheService.getScriptCache().put(ck, '1', 90); }catch(_){}   // 90s: reenvio idêntico é ignorado
+    try{ CacheService.getScriptCache().put(ck, key, 90); }catch(_){}   // 90s: reenvio idêntico devolve a MESMA chave
     invalidarCache_();
     return { ok:true, key:key };
   } finally { try{ lock.releaseLock(); }catch(_){} }
@@ -627,7 +627,7 @@ function adicionarOcorrenciasMultiplas(data, datas, aprovarJa, serieId){
     var d2 = Object.assign({}, data); d2.date = dt;
     d2.needs = Object.assign({}, data.needs || {}); if(serie) d2.needs.serie = serie;
     var res = enviarReserva(d2);
-    if(aprovarJa){
+    if(aprovarJa && res.key){
       aprovar({ key:res.key, title:d2.title, dept:d2.dept||'', tagPastor:d2.tagPastor||'',
         solicitante:d2.solicitante||'', email:d2.email||'', date:d2.date, s:d2.s, e:d2.e,
         spaces:d2.spaces||[], needs:d2.needs, origem:'Secretaria' });
@@ -640,12 +640,12 @@ function adicionarOcorrenciasMultiplas(data, datas, aprovarJa, serieId){
 /** Adicionar ocorrência direto no painel (secretaria). Opcional: já aprovar → agenda. */
 function adicionarOcorrencia(data, aprovarJa){
   var res = enviarReserva(data);
-  if(aprovarJa){
+  if(aprovarJa && res.key){
     aprovar({ key:res.key, title:data.title, dept:data.dept||'', tagPastor:data.tagPastor||'',
       solicitante:data.solicitante||'', email:data.email||'', date:data.date, s:data.s, e:data.e,
       spaces:data.spaces||[], needs:data.needs, recorrencia:data.recorrencia, origem:'Secretaria' });
   }
-  return { ok:true };
+  return { ok:true, key:res.key };
 }
 
 // ---- E-mails (só a secretaria/servidor dispara) ----
