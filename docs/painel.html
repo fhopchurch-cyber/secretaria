@@ -656,8 +656,12 @@ document.getElementById("addForm").addEventListener("submit",function(e){
   // monta a lista de datas da recorrência (a data principal é sempre a 1ª ocorrência)
   var dts=null;
   if(rep==="datas"){
-    if(!addDatas.length){toast("Adicione ao menos uma data",true);return;}
-    dts=[date].concat(addDatas);dts=dts.filter(function(d,i){return d&&dts.indexOf(d)===i;});
+    // puxa automaticamente a data que ficou no seletor sem o usuario clicar "+ Adicionar data"
+    var pend=(document.getElementById("aDataAdd")||{}).value;
+    if(pend&&addDatas.indexOf(pend)<0){addDatas.push(pend);}
+    if(addDatas.length){
+      dts=[date].concat(addDatas);dts=dts.filter(function(d,i){return d&&dts.indexOf(d)===i;});
+    } // sem nenhuma data extra -> cai no fluxo de ocorrencia unica (nao trava mais)
   } else if(rep!=="nao"&&weeks>1){ dts=expandRecPanel(date,rep,weeks); }
   if(dts&&dts.length>1){
     fecharESalvar((apr?"Criando ":"Enviando ")+dts.length+" ocorrência(s)…",function(){
