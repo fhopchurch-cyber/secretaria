@@ -941,9 +941,14 @@ function mkDate_(date, time){
 /** Aprovar: cria o evento na agenda + convida o e-mail do solicitante. */
 function aprovar(req){
   if(!req || !req.key) throw new Error('Pedido inválido.');
+  if(!req.date) throw new Error('Reserva sem data — não dá para criar na agenda.');
   var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+  // IDEMPOTÊNCIA: se já foi aprovado e o evento ainda existe, não recria (seguro para re-tentativa).
+  try{ var _e0 = readEstado_()[req.key];
+    if(_e0 && _e0.status==='aprovado' && _e0.eventId){ var _ev0 = cal.getEventById(_e0.eventId); if(_ev0) return { ok:true, eventId:_e0.eventId, already:true }; }
+  }catch(_){}
   var start = mkDate_(req.date, req.s), end = mkDate_(req.date, req.e);
-  var quem = req.tagPastor ? ('Pastor: '+req.tagPastor) : (req.dept ? ('Depto: '+req.dept) : '');
+  if(isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error('Data/horário inválidos — não dá para criar na agenda.');
   var titulo = req.title + (req.dept ? ' — '+req.dept : (req.tagPastor ? ' — '+req.tagPastor : ''));
   var local = (req.spaces||[]).join(', ');
   var _serie = (req.needs && req.needs.serie) ? String(req.needs.serie) : '';
@@ -960,23 +965,28 @@ function aprovar(req){
   } else {
     ev = cal.createEvent(titulo, start, end, opts);
   }
-  var cor = corEvento_((req.spaces||[])[0]); if(cor){ try{ ev.setColor(cor); }catch(e){} } // cor por espaço
-  // convidados: quem solicitou + patrimônio/AV (quando houver). Força o e-mail de convite.
-  var guests = [];
-  if(req.email && /@/.test(req.email)) guests.push(req.email);
-  emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
-  if(req.needs && req.needs.convidados){ convidadosArr_(req.needs.convidados).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); }); }
-  if(guests.length){
-    var enviou = forcarConvites_(cfg().fontes.agenda, ev.getId(), guests);   // API avançada (e-mail garantido)
-    if(!enviou){ guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} }); } // fallback
-  }
+  // ATÔMICO: assim que o evento existe, grava "aprovado" + eventId. E-mail/convite NÃO podem abortar isso.
   upsertEstado_(req.key, { status:'aprovado', pastor:req.tagPastor||'', eventId:ev.getId(), titulo:req.title });
+  try{ var cor = corEvento_((req.spaces||[])[0]); if(cor) ev.setColor(cor); }catch(e){} // cor por espaço
+  // convidados: quem solicitou + patrimônio/AV (quando houver). Força o e-mail de convite.
+  try{
+    var guests = [];
+    if(req.email && /@/.test(req.email)) guests.push(req.email);
+    emailsResponsaveisEnvolvidos_(req).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); });
+    if(req.needs && req.needs.convidados){ convidadosArr_(req.needs.convidados).forEach(function(em){ if(guests.indexOf(em) < 0) guests.push(em); }); }
+    if(guests.length){
+      var enviou = forcarConvites_(cfg().fontes.agenda, ev.getId(), guests);   // API avançada (e-mail garantido)
+      if(!enviou){ guests.forEach(function(em){ try{ ev.addGuest(em); }catch(e){} }); } // fallback
+    }
+  }catch(e){}
   try { notificarResponsaveis_(req); } catch(e){}
   // avisa o solicitante que foi confirmado (modelo editável no Admin)
   if(req.email && /@/.test(req.email)){
-    var cmap = { solicitante:_esc_(req.solicitante||''), evento:_esc_(req.title||''),
-      data:_esc_(fmtBR_(req.date)), horario:_esc_((req.s||'')+'–'+(req.e||'')), local:_esc_(local) };
-    sendMailHtml_(req.email, 'Reserva confirmada: '+req.title, _tpl_(cfg().emailConfirmacao || EMAIL_CONFIRM_DEF, cmap));
+    try{
+      var cmap = { solicitante:_esc_(req.solicitante||''), evento:_esc_(req.title||''),
+        data:_esc_(fmtBR_(req.date)), horario:_esc_((req.s||'')+'–'+(req.e||'')), local:_esc_(local) };
+      sendMailHtml_(req.email, 'Reserva confirmada: '+req.title, _tpl_(cfg().emailConfirmacao || EMAIL_CONFIRM_DEF, cmap));
+    }catch(e){}
   }
   return { ok:true, eventId: ev.getId() };
 }
