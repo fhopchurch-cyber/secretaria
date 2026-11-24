@@ -6,11 +6,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-  :root{--ground:#fff;--surface:#fff;--surface-2:#f4f6f8;--ink:#0a0a0a;--ink-soft:#33373d;--ink-faint:#69727d;
-    --line:#e5e7ea;--line-strong:#d3d6db;--accent:#1e73be;--accent-soft:#e7f0f9;--accent-ink:#155a97;
-    --crit:#d13b47;--crit-bg:#fbe9ea;--crit-line:#f1c4c8;--warn:#a9700d;--warn-bg:#fbf1dc;--warn-line:#ecd6a8;
-    --ok:#38994f;--ok-bg:#e7f4ea;--ok-line:#c2e2ca;--shadow:0 1px 2px rgba(10,10,10,.04),0 6px 22px rgba(10,10,10,.06);--radius:14px}
-  @media(prefers-color-scheme:dark){:root{--ground:#0d0f11;--surface:#15181b;--surface-2:#1c2024;--ink:#f2f4f6;--ink-soft:#c3c8ce;--ink-faint:#828b94;--line:#262b30;--line-strong:#353b42;--accent:#5aa3e2;--accent-soft:#122a3e;--accent-ink:#93c5ee;--crit:#ef7d89;--crit-bg:#3a2126;--crit-line:#5b2f36;--warn:#dcab5d;--warn-bg:#382c14;--warn-line:#564322;--ok:#6fc98a;--ok-bg:#182c1f;--ok-line:#2b4736}}
+  :root{--ground:#f4f4f3;--surface:#fff;--surface-2:#f3f3f1;--ink:#0d0d0f;--ink-soft:#3d4046;--ink-faint:#787e86;
+    --line:#e7e7e4;--line-strong:#d7d7d2;--accent:#0d0d0f;--on-accent:#fff;--accent-soft:#ececeb;--accent-ink:#0d0d0f;
+    --crit:#c8323f;--crit-bg:#fbe9ea;--crit-line:#f1c4c8;--warn:#8a5500;--warn-bg:#fff4e2;--warn-line:#f1d49a;
+    --ok:#2f8d47;--ok-bg:#e7f4ea;--ok-line:#c2e2ca;
+    --shadow-sm:0 1px 2px rgba(13,13,15,.05);
+    --shadow:0 1px 2px rgba(13,13,15,.05),0 12px 28px -14px rgba(13,13,15,.16);
+    --shadow-lg:0 2px 4px rgba(13,13,15,.05),0 30px 60px -22px rgba(13,13,15,.30);--radius:18px}
+  @media(prefers-color-scheme:dark){:root{--ground:#0b0c0d;--surface:#161719;--surface-2:#1e2023;--ink:#f3f4f5;--ink-soft:#c3c7cc;--ink-faint:#868d96;--line:#282a2e;--line-strong:#393c42;--accent:#f3f4f5;--on-accent:#0d0d0f;--accent-soft:#222427;--accent-ink:#f3f4f5;--crit:#ef7d89;--crit-bg:#3a2126;--crit-line:#5b2f36;--warn:#e9b465;--warn-bg:#2e2411;--warn-line:#4d3d1c;--ok:#6fc98a;--ok-bg:#182c1f;--ok-line:#2b4736;--shadow-sm:0 1px 2px rgba(0,0,0,.4);--shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -14px rgba(0,0,0,.6);--shadow-lg:0 2px 6px rgba(0,0,0,.5),0 34px 64px -20px rgba(0,0,0,.75)}}
   *{box-sizing:border-box}
   body{margin:0;background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5}
   .wrap{max-width:1160px;margin:0 auto;padding:22px clamp(14px,4vw,34px) 80px}
@@ -161,6 +164,36 @@
     .pxrow{flex-direction:column} .pxrow input{width:100%}
     details.adminsec>summary{font-size:14px}
   }
+  /* ===== Refinamentos premium (camada de acabamento) ===== */
+  body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .ico{flex:none;vertical-align:-.15em}
+  .field input:focus,.dlg input:focus,.dlg select:focus,.dlg textarea:focus,.adminsec input:focus,.passel:focus,.toolbar input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn-primary{color:var(--on-accent);box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .18s ease}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn-primary:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
+  .btn-ghost,.btn-sm,.navbtn,.passel{transition:transform .1s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease}
+  .btn-ghost:hover,.navbtn:hover{border-color:var(--ink-faint);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+  .btn-sm:hover{border-color:var(--ink-faint)}
+  .btn-ghost:active,.navbtn:active,.btn-sm:active{transform:translateY(0)}
+  .tab{transition:color .15s ease,border-color .15s ease}
+  .tab:hover{color:var(--ink)}
+  .row{transition:box-shadow .18s ease,border-color .18s ease}
+  .row:hover{box-shadow:var(--shadow);border-color:var(--line-strong)}
+  .tile{transition:box-shadow .18s ease,transform .12s ease}
+  .tile:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+  .weekday{transition:box-shadow .16s ease,transform .1s ease}
+  .weekday:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+  .spacegrid label{transition:border-color .16s ease,background .16s ease}
+  .spacegrid label:hover{border-color:var(--ink-faint)}
+  .spacegrid label:has(input:checked){background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  .spacegrid label:has(input:checked) input{accent-color:var(--on-accent)}
+  .needs label{transition:border-color .16s ease,background .16s ease}
+  .needs label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+  dialog::backdrop{backdrop-filter:blur(2px)}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .tiles .tile{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
+  .tiles .tile:nth-child(2){animation-delay:.05s}.tiles .tile:nth-child(3){animation-delay:.1s}.tiles .tile:nth-child(4){animation-delay:.15s}.tiles .tile:nth-child(5){animation-delay:.2s}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
