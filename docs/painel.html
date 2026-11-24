@@ -729,7 +729,10 @@ function openEvtEdit(id,title,cur,date,s,e,serie){
   document.getElementById("evtEmail").value="";document.getElementById("evtSend").checked=false;
   evtAddConvidados.length=0;document.getElementById("evtGuestAdd").value="";renderGuestChips("evtGuestsAddList",evtAddConvidados);document.getElementById("evtNotifyNew").checked=true;
   fillNeedsInto("evtNeedsGroups");document.getElementById("evtNeedsWrap").open=false;
-  document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"");
+  // acha a solicitação de origem (mesmo eventId) para mostrar QUANDO foi reservado
+  var _rq=null;for(var _i=0;_i<(DATA.requests||[]).length;_i++){var _x=DATA.requests[_i];if(_x.eventId&&_x.eventId===id&&_x.quando){_rq=_x;break;}}
+  var _resv=_rq?("  ·  🕒 Reservado em "+fmtQuando(_rq.quando)+(antecHoras(_rq)!=null&&antecHoras(_rq)<24?" (em cima da hora)":"")):"";
+  document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"")+_resv;
   // carrega os convidados atuais para poder remover o e-mail errado
   var gw=document.getElementById("evtGuestsWrap"),gb=document.getElementById("evtGuests");
   gw.style.display="none";gb.innerHTML='<span style="font-size:12px;color:var(--ink-faint)">Carregando convidados…</span>';gw.style.display="block";
