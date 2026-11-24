@@ -51,68 +51,104 @@ var google={script:{}};
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-  :root{--ground:#f5f6f8;--surface:#fff;--surface-2:#f1f3f6;--ink:#0a0a0a;--ink-soft:#33373d;--ink-faint:#69727d;
-    --line:#e5e7ea;--line-strong:#d3d6db;--accent:#1e73be;--accent-soft:#e7f0f9;--accent-ink:#155a97;
-    --crit:#d13b47;--crit-bg:#fbe9ea;--crit-line:#f1c4c8;--ok:#38994f;--ok-bg:#e7f4ea;--ok-line:#c2e2ca;
-    --shadow:0 1px 2px rgba(10,10,10,.04),0 8px 26px rgba(10,10,10,.08);--radius:16px}
-  @media(prefers-color-scheme:dark){:root{--ground:#0d0f11;--surface:#15181b;--surface-2:#1c2024;--ink:#f2f4f6;--ink-soft:#c3c8ce;--ink-faint:#828b94;--line:#262b30;--line-strong:#353b42;--accent:#5aa3e2;--accent-soft:#122a3e;--accent-ink:#93c5ee;--crit:#ef7d89;--crit-bg:#3a2126;--crit-line:#5b2f36;--ok:#6fc98a;--ok-bg:#182c1f;--ok-line:#2b4736}}
+  :root{--ground:#f4f4f3;--surface:#fff;--surface-2:#f3f3f1;--ink:#0d0d0f;--ink-soft:#3d4046;--ink-faint:#787e86;
+    --line:#e7e7e4;--line-strong:#d7d7d2;--accent:#0d0d0f;--on-accent:#fff;--accent-soft:#ececeb;--accent-ink:#0d0d0f;
+    --crit:#c8323f;--crit-bg:#fbe9ea;--crit-line:#f1c4c8;--ok:#2f8d47;--ok-bg:#e7f4ea;--ok-line:#c2e2ca;
+    --warn:#8a5500;--warn-bg:#fff4e2;--warn-line:#f1d49a;
+    --shadow-sm:0 1px 2px rgba(13,13,15,.05);
+    --shadow:0 1px 2px rgba(13,13,15,.05),0 12px 28px -14px rgba(13,13,15,.18);
+    --shadow-lg:0 2px 4px rgba(13,13,15,.05),0 30px 60px -22px rgba(13,13,15,.30);
+    --radius:20px;--radius-sm:12px}
+  @media(prefers-color-scheme:dark){:root{--ground:#0b0c0d;--surface:#161719;--surface-2:#1e2023;--ink:#f3f4f5;--ink-soft:#c3c7cc;--ink-faint:#868d96;--line:#282a2e;--line-strong:#393c42;--accent:#f3f4f5;--on-accent:#0d0d0f;--accent-soft:#222427;--accent-ink:#f3f4f5;--crit:#ef7d89;--crit-bg:#3a2126;--crit-line:#5b2f36;--ok:#6fc98a;--ok-bg:#182c1f;--ok-line:#2b4736;--warn:#e9b465;--warn-bg:#2e2411;--warn-line:#4d3d1c;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -14px rgba(0,0,0,.6);--shadow-lg:0 2px 6px rgba(0,0,0,.5),0 34px 64px -20px rgba(0,0,0,.75)}}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5}
-  .wrap{max-width:640px;margin:0 auto;padding:24px clamp(14px,4vw,20px) 70px}
-  .logohead{display:flex;justify-content:center;margin-bottom:6px}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .ico{flex:none;vertical-align:-.15em}
+  .wrap{max-width:660px;margin:0 auto;padding:26px clamp(14px,4vw,22px) 72px}
+  .logohead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
   .logo{height:30px;overflow:visible}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px clamp(18px,4vw,28px);margin-top:14px}
-  .eyebrow{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700;text-align:center}
-  h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:26px;letter-spacing:-.02em;margin:6px 0 6px;text-align:center}
-  .lead{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px;text-align:center}
-  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
-  .field>label{font-size:12px;font-weight:600;color:var(--ink-soft)}
-  .field input,.field select{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);color:var(--ink)}
-  .field input:focus,.field select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .hbtns{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .hbtn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font:inherit;font-weight:600;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:11px;padding:9px 13px;cursor:pointer;text-decoration:none;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .18s ease,border-color .18s ease}
+  .hbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:var(--ink-faint)}
+  .hbtn:active{transform:translateY(0)}
+  .hbtn .ico{color:var(--ink-soft)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px clamp(18px,4.5vw,32px);margin-top:16px;animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+  .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;text-align:center}
+  h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:28px;letter-spacing:-.025em;margin:7px 0 7px;text-align:center}
+  .lead{color:var(--ink-soft);font-size:13.5px;margin:0 auto 22px;text-align:center;max-width:46ch}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:15px}
+  .field>label{font-size:11.5px;font-weight:600;color:var(--ink-soft);letter-spacing:.01em}
+  .field input,.field select{width:100%;font:inherit;font-size:14px;padding:11px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+  .field input::placeholder{color:var(--ink-faint)}
+  .field input:hover,.field select:hover{border-color:var(--ink-faint)}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:460px){.grid2{grid-template-columns:1fr}}
-  .seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px}
-  .seg button{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13px;padding:8px;border-radius:7px;cursor:pointer;color:var(--ink-soft)}
-  .seg button[aria-pressed=true]{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}
-  .spacegrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .seg{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px}
+  .seg button{flex:1;border:0;background:none;font:inherit;font-weight:600;font-size:13px;padding:8px;border-radius:9px;cursor:pointer;color:var(--ink-soft);transition:all .16s ease}
+  .seg button[aria-pressed=true]{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow-sm)}
+  .spacegrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   @media(max-width:460px){.spacegrid{grid-template-columns:1fr}}
-  .spacegrid label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer}
-  .spacegrid label:hover{border-color:var(--accent)}
+  .spacegrid label{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;transition:border-color .16s ease,background .16s ease,transform .1s ease,box-shadow .16s ease}
+  .spacegrid label:hover{border-color:var(--ink-faint);box-shadow:var(--shadow-sm)}
+  .spacegrid label:active{transform:scale(.99)}
+  .spacegrid label:has(input:checked){background:var(--accent);color:var(--on-accent);border-color:var(--accent);box-shadow:var(--shadow-sm)}
   .spacegrid input{width:auto;accent-color:var(--accent)}
-  .banner{border-radius:11px;padding:13px 15px;font-size:13.5px;font-weight:600;margin:4px 0 18px;display:none}
-  .banner.show{display:block}
+  .spacegrid label:has(input:checked) input{accent-color:var(--on-accent)}
+  .banner{border-radius:var(--radius-sm);padding:13px 15px;font-size:13.5px;font-weight:600;margin:6px 0 18px;display:none;gap:11px;align-items:flex-start;line-height:1.4}
+  .banner.show{display:flex;animation:pop .28s cubic-bezier(.2,.8,.2,1) both}
+  .banner .ico{margin-top:1px}
   .banner.ok{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-line)}
   .banner.bad{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-line)}
   .banner.wait{background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line)}
-  .banner .bsub{font-weight:500;font-size:12.5px;margin-top:4px;display:block}
-  .btn-primary{width:100%;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:15px;padding:13px;border-radius:11px;cursor:pointer;box-shadow:var(--shadow)}
-  .btn-primary:hover{filter:brightness(1.06)} .btn-primary:disabled{opacity:.6;cursor:not-allowed}
-  details{margin-bottom:16px;border:1px solid var(--line);border-radius:10px;padding:0 12px}
-  summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:11px 0}
-  .needs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .banner .bsub{font-weight:500;font-size:12.5px;margin-top:4px;display:block;opacity:.92}
+  .note-off{display:flex;gap:11px;align-items:flex-start;background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn);border-radius:var(--radius-sm);padding:12px 15px;margin:0 0 18px;font-size:13.5px;line-height:1.5;animation:pop .3s cubic-bezier(.2,.8,.2,1) both}
+  .note-off .ico{margin-top:1px}
+  .btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;font-size:15px;padding:14px;border-radius:var(--radius-sm);cursor:pointer;box-shadow:var(--shadow);transition:transform .12s ease,box-shadow .18s ease,filter .18s ease}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow-lg)}
+  .btn-primary:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:var(--shadow-sm)}
+  details{margin-bottom:16px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:0 14px;background:var(--surface-2)/.4}
+  summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent-ink);padding:12px 0;list-style:none;display:flex;align-items:center;gap:8px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--ink-faint);border-bottom:2px solid var(--ink-faint);transform:rotate(-45deg);transition:transform .2s ease;flex:none}
+  details[open]>summary::before{transform:rotate(45deg)}
+  .needs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-bottom:12px}
   @media(max-width:460px){.needs{grid-template-columns:1fr}}
   .needs .nh{grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin:8px 0 3px}
-  .needs label{display:flex;gap:7px;align-items:center;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
+  .needs label{display:flex;gap:8px;align-items:center;font-size:12.5px;border:1px solid var(--line-strong);border-radius:9px;padding:8px 10px;cursor:pointer;background:var(--surface);transition:border-color .16s ease}
+  .needs label:hover{border-color:var(--ink-faint)}
+  .needs label:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
   .needs input{width:auto;accent-color:var(--accent)}
-  .success{text-align:center;padding:30px 12px}
-  .success .big{font-size:46px;margin-bottom:10px}
-  .success h2{font-family:"Archivo",sans-serif;font-size:22px;margin:0 0 8px}
-  .success p{color:var(--ink-soft);font-size:14px;margin:0 auto 20px;max-width:44ch}
-  .btn-ghost{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:10px 18px;border-radius:10px;cursor:pointer}
-  .foot{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:18px}
+  .success{text-align:center;padding:38px 16px;animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+  .success .big{display:flex;justify-content:center;margin-bottom:16px}
+  .success .checkwrap{width:72px;height:72px;border-radius:50%;background:var(--ok-bg);border:1px solid var(--ok-line);display:flex;align-items:center;justify-content:center;color:var(--ok)}
+  .success .checkwrap .ico{animation:draw .6s .15s ease both}
+  .success h2{font-family:"Archivo",sans-serif;font-weight:800;font-size:23px;letter-spacing:-.02em;margin:0 0 10px}
+  .success p{color:var(--ink-soft);font-size:14px;margin:0 auto 22px;max-width:46ch}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;font-size:14px;padding:11px 20px;border-radius:var(--radius-sm);cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .12s ease,box-shadow .18s ease,border-color .18s ease}
+  .btn-ghost:hover{transform:translateY(-1px);box-shadow:var(--shadow);border-color:var(--ink-faint)}
+  .btn-ghost:active{transform:translateY(0)}
+  .foot{text-align:center;color:var(--ink-faint);font-size:11.5px;margin-top:20px;line-height:1.6}
+  dialog{border:0;border-radius:var(--radius);padding:0;box-shadow:var(--shadow-lg);background:var(--surface);color:var(--ink)}
+  dialog::backdrop{background:rgba(13,13,15,.45);backdrop-filter:blur(2px)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+  @keyframes draw{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="logohead" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div class="logohead">
     <svg class="logo" viewBox="0 0 500 92" role="img" aria-label="fhop church" preserveAspectRatio="xMidYMid meet">
       <text x="2" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ink)">fhop</text>
       <rect x="170" y="6" width="322" height="80" rx="20" style="fill:var(--ink)"></rect>
       <text x="192" y="66" font-family="Archivo,system-ui,sans-serif" font-weight="800" font-size="74" letter-spacing="-3" style="fill:var(--ground)">church</text>
     </svg>
-    <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto">
-      <a href="espacos.html" style="white-space:nowrap;font:inherit;font-weight:700;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:9px 14px;cursor:pointer;text-decoration:none">📅 Ver ocupação</a>
-      <button type="button" id="loginBtn" style="white-space:nowrap;font:inherit;font-weight:700;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;padding:9px 14px;cursor:pointer">🔒 Faça login</button>
+    <div class="hbtns">
+      <a href="espacos.html" class="hbtn"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Ver ocupação</a>
+      <button type="button" id="loginBtn" class="hbtn"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Entrar</button>
     </div>
   </div>
 
@@ -120,7 +156,7 @@ var google={script:{}};
     <div class="eyebrow" id="pgEyebrow">Reserva de espaço</div>
     <h1>Solicitar reserva</h1>
     <p class="lead" id="pgLead">Preencha abaixo. Ao escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.</p>
-    <div id="offHoursNote" hidden style="display:flex;gap:10px;align-items:flex-start;background:#fff4e5;border:1px solid #f3d19b;color:#7a4b00;border-radius:12px;padding:11px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.45"><span style="font-size:16px;line-height:1.2">⏰</span><span>A secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Você pode enviar normalmente, mas pedidos feitos fora desse horário só são analisados no <b>próximo dia útil</b>.</span></div>
+    <div id="offHoursNote" class="note-off" hidden><svg class="ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>A secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Você pode enviar normalmente, mas pedidos feitos fora desse horário só são analisados no <b>próximo dia útil</b>.</span></div>
 
     <form id="form">
       <div class="grid2">
@@ -157,10 +193,9 @@ var google={script:{}};
         <div id="needsGroups"></div>
       </details>
 
-      <button type="submit" class="btn-primary" id="submitBtn">Enviar solicitação</button>
+      <button type="submit" class="btn-primary" id="submitBtn"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Enviar solicitação</button>
     </form>
     <p class="foot" id="pgFoot">FHOP Church · o preenchimento não garante a reserva; aguarde a confirmação.</p>
-    <div style="text-align:center;font-size:10px;color:var(--ink-faint);margin-top:4px">versão r7 · recorrência ativa</div>
   </div>
 
   <dialog id="loginDialog" style="border:0;border-radius:16px;padding:0;max-width:380px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
@@ -182,10 +217,10 @@ var google={script:{}};
   </dialog>
 
   <div class="card success" id="success" hidden>
-    <div class="big">✅</div>
+    <div class="big"><div class="checkwrap"><svg class="ico" width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div></div>
     <h2>Solicitação enviada!</h2>
     <p id="successMsg">Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.</p>
-    <button class="btn-ghost" id="again">Fazer outra reserva</button>
+    <button class="btn-ghost" id="again"><svg class="ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>Fazer outra reserva</button>
   </div>
 </div>
 
@@ -251,20 +286,28 @@ google.script.run.withSuccessHandler(function(p){if(p)applyPagina(p);}).withFail
 
 function chosen(){var a=[];rSpaceGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);});return a;}
 
+// ícones SVG (traço, herdam a cor do texto)
+function svgIco(name,sz){sz=sz||17;var P={
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><path d="M12 8h.01"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'
+};return '<svg class="ico" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(P[name]||'')+'</svg>';}
 function checkConflict(){
   var b=id("banner"),date=id("rDate").value,s=id("rStart").value,en=id("rEnd").value,sp=chosen();
   b.className="banner";
   if(!date||!s||!en||toMin(en)<=toMin(s)||!sp.length){b.classList.remove("show");return;}
-  if(OCUP===null && !OCUPERR){b.classList.add("show","wait");b.textContent="Checando disponibilidade…";return;}
-  if(OCUPERR){b.classList.add("show");b.innerHTML="Não deu para checar a disponibilidade agora.<span class='bsub'>Você pode enviar mesmo assim — a secretaria confere na aprovação.</span>";return;}
+  if(OCUP===null && !OCUPERR){b.classList.add("show","wait");b.innerHTML=svgIco('clock')+"<div>Checando disponibilidade…</div>";return;}
+  if(OCUPERR){b.classList.add("show","wait");b.innerHTML=svgIco('info')+"<div>Não deu para checar a disponibilidade agora.<span class='bsub'>Você pode enviar mesmo assim — a secretaria confere na aprovação.</span></div>";return;}
   var probe={date:date,s:s,e:en};
   var hits=OCUP.filter(function(o){return o.date===probe.date && sp.indexOf(o.space)>-1 && toMin(probe.s)<toMin(o.e) && toMin(o.s)<toMin(probe.e);});
   b.classList.add("show");
-  if(!hits.length){b.classList.add("ok");b.innerHTML="✓ Espaço(s) livre(s) nesse horário.<span class='bsub'>Você pode enviar — a secretaria confirma.</span>";}
+  if(!hits.length){b.classList.add("ok");b.innerHTML=svgIco('check')+"<div>Espaço(s) livre(s) nesse horário.<span class='bsub'>Você pode enviar — a secretaria confirma.</span></div>";}
   else{
     b.classList.add("bad");
     var seen={},list=hits.filter(function(h){if(seen[h.space])return false;seen[h.space]=1;return true;}).map(function(h){return esc(h.space)+" ("+h.s+"–"+h.e+")";});
-    b.innerHTML="⚠ Já há reserva confirmada nesse horário:<span class='bsub'>"+list.join("<br>")+"<br><br>Você ainda pode enviar, mas provavelmente será recusado. Tente outro horário ou espaço.</span>";
+    b.innerHTML=svgIco('alert')+"<div>Já há reserva confirmada nesse horário:<span class='bsub'>"+list.join("<br>")+"<br><br>Você ainda pode enviar, mas provavelmente será recusado. Tente outro horário ou espaço.</span></div>";
   }
 }
 ["rDate","rStart","rEnd"].forEach(function(x){id(x).addEventListener("input",checkConflict);});
@@ -350,11 +393,11 @@ id("form").addEventListener("submit",function(e){
     .withSuccessHandler(function(){
       window._sending=false;
       var base=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
-      var foraHora=foraExpediente(new Date())?'<div style="margin-top:14px;background:#fff4e5;border:1px solid #f3d19b;color:#7a4b00;border-radius:12px;padding:11px 14px;font-size:13.5px;line-height:1.45">⏰ Lembrando: a secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Como seu pedido foi enviado fora desse horário, ele será analisado no <b>próximo dia útil</b>.</div>':"";
+      var foraHora=foraExpediente(new Date())?'<div class="note-off" style="margin-top:16px;text-align:left">'+svgIco('clock')+'<span>Lembrando: a secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Como seu pedido foi enviado fora desse horário, ele será analisado no <b>próximo dia útil</b>.</span></div>':"";
       id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base+foraHora;
       id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
     })
-    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+((err&&err.message)||err));});
+    .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").innerHTML=svgIco("send",16)+"Enviar solicitação";alert("Erro ao enviar: "+((err&&err.message)||err));});
   if(nOcc>1)run.enviarReservaDatas(data,list);
   else run.enviarReserva(data);
 });
@@ -383,7 +426,7 @@ function foraExpediente(d){d=d||new Date();var wd=d.getDay();if(wd===0||wd===6)r
 function renderRDatas(){var box=id("rDatasList");if(!box)return;box.innerHTML=rDatas.slice().sort().map(function(d,i){return '<span style="display:inline-flex;gap:6px;align-items:center;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px">'+fmtBRd(d)+'<button type="button" data-rm="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rm]").forEach(function(b){b.onclick=function(){var a=rDatas.slice().sort();a.splice(+b.getAttribute("data-rm"),1);rDatas=a;renderRDatas();};});}
 id("rDataAddBtn").onclick=function(){var v=id("rDataAdd").value;if(!v){alert("Escolha uma data");return;}if(rDatas.indexOf(v)<0)rDatas.push(v);id("rDataAdd").value="";renderRDatas();};
 id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"A “Data” acima é a 1ª ocorrência. Adicione abaixo as outras datas. Cada uma vira uma solicitação separada.":"Cada ocorrência vira uma solicitação separada — a secretaria aprova uma a uma.";if(datas)renderRDatas();};
-id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";rDatas=[];id("rRepeatWeeksWrap").style.display="none";id("rDatasWrap").style.display="none";id("rRepeatHint").style.display="none";renderRDatas();id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
+id("again").onclick=function(){id("form").reset();id("rStart").value="19:00";id("rEnd").value="21:00";id("banner").className="banner";rDatas=[];id("rRepeatWeeksWrap").style.display="none";id("rDatasWrap").style.display="none";id("rRepeatHint").style.display="none";renderRDatas();id("submitBtn").disabled=false;id("submitBtn").innerHTML=svgIco("send",16)+"Enviar solicitação";id("success").hidden=true;id("formCard").hidden=false;};
 </script>
 </body>
 </html>
