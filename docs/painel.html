@@ -394,10 +394,12 @@ function overlap(a,b){return a.date===b.date&&a.s&&a.e&&b.s&&b.e&&toMin(a.s)<toM
 function evSpaces(c){return (c&&c.spaces&&c.spaces.length)?c.spaces:(c&&c.space?[c.space]:[]);}
 function parseD(d){var p=d.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
 function fmtD(d){var t=parseD(d);return t.getDate()+" "+MESAB[t.getMonth()];}
-// carimbo "yyyy-MM-dd HH:mm" -> "DD/MM/AA HH:mm"; devolve o original se não casar
-function fmtQuando(q){q=String(q||"").trim();var m=q.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m)return q;return m[3]+"/"+m[2]+"/"+m[1].slice(2)+" "+m[4]+":"+m[5];}
+// aceita "yyyy-MM-dd HH:mm", ISO, ou o Date.toString() do JS; devolve Date ou null
+function parseQuando(q){q=String(q||"").trim();if(!q)return null;var m=q.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]);var d=new Date(q);return isNaN(d.getTime())?null:d;}
+// -> "DD/MM/AAAA | HHhMMm"; devolve o original se não der p/ interpretar
+function fmtQuando(q){var d=parseQuando(q);if(!d)return String(q||"");function z(n){return(n<10?"0":"")+n;}return z(d.getDate())+"/"+z(d.getMonth()+1)+"/"+d.getFullYear()+" | "+z(d.getHours())+"h"+z(d.getMinutes())+"m";}
 // horas de antecedência entre a reserva (quando) e o início do evento (date+s); null se não der p/ calcular
-function antecHoras(r){try{var m=String(r.quando||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m||!r.date)return null;var feita=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]);var ps=(r.s||"00:00").split(":");var dp=parseD(r.date);var ini=new Date(dp.getFullYear(),dp.getMonth(),dp.getDate(),+ps[0]||0,+ps[1]||0);return (ini-feita)/3600000;}catch(e){return null;}}
+function antecHoras(r){try{var feita=parseQuando(r.quando);if(!feita||!r.date)return null;var ps=(r.s||"00:00").split(":");var dp=parseD(r.date);var ini=new Date(dp.getFullYear(),dp.getMonth(),dp.getDate(),+ps[0]||0,+ps[1]||0);return (ini-feita)/3600000;}catch(e){return null;}}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function keyOf(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
 function p2(n){n=String(n);return n.length<2?"0"+n:n;}
