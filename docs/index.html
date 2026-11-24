@@ -120,6 +120,7 @@ var google={script:{}};
     <div class="eyebrow" id="pgEyebrow">Reserva de espaço</div>
     <h1>Solicitar reserva</h1>
     <p class="lead" id="pgLead">Preencha abaixo. Ao escolher espaço, data e horário, avisamos <b>na hora</b> se já há algo marcado. Sua solicitação vai para a secretaria aprovar.</p>
+    <div id="offHoursNote" hidden style="display:flex;gap:10px;align-items:flex-start;background:#fff4e5;border:1px solid #f3d19b;color:#7a4b00;border-radius:12px;padding:11px 14px;margin:0 0 16px;font-size:13.5px;line-height:1.45"><span style="font-size:16px;line-height:1.2">⏰</span><span>A secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Você pode enviar normalmente, mas pedidos feitos fora desse horário só são analisados no <b>próximo dia útil</b>.</span></div>
 
     <form id="form">
       <div class="grid2">
@@ -279,6 +280,8 @@ function loadOcup(tentativa){
     }).getOcupacao();
 }
 loadOcup();
+// Aviso no topo quando a pessoa abre a página fora do expediente da secretaria
+(function(){try{var n=id("offHoursNote");if(n&&foraExpediente(new Date()))n.hidden=false;}catch(e){}})();
 // ===== Login da secretaria (GitHub Pages) =====
 var lgDlg=id("loginDialog");
 function lgErr(m){var e=id("lgErr");e.textContent=m;e.style.display=m?"block":"none";}
@@ -347,7 +350,8 @@ id("form").addEventListener("submit",function(e){
     .withSuccessHandler(function(){
       window._sending=false;
       var base=conf?"Recebemos seu pedido — mas <b>havia conflito</b> no horário, então a secretaria pode pedir um ajuste. Você recebe o retorno por e-mail.":"Recebemos seu pedido. A secretaria vai confirmar a disponibilidade e você recebe a confirmação por e-mail.";
-      id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base;
+      var foraHora=foraExpediente(new Date())?'<div style="margin-top:14px;background:#fff4e5;border:1px solid #f3d19b;color:#7a4b00;border-radius:12px;padding:11px 14px;font-size:13.5px;line-height:1.45">⏰ Lembrando: a secretaria atende de <b>segunda a sexta, das 9h às 18h</b> (exceto feriados). Como seu pedido foi enviado fora desse horário, ele será analisado no <b>próximo dia útil</b>.</div>':"";
+      id("successMsg").innerHTML=(nOcc>1?("Enviamos <b>"+nOcc+" solicitações</b> (uma por data). "):"")+base+foraHora;
       id("formCard").hidden=true;id("success").hidden=false;window.scrollTo(0,0);
     })
     .withFailureHandler(function(err){window._sending=false;id("submitBtn").disabled=false;id("submitBtn").textContent="Enviar solicitação";alert("Erro ao enviar: "+((err&&err.message)||err));});
@@ -360,6 +364,22 @@ function _isoParts(iso){var p=String(iso).split("-");return new Date(+p[0],+p[1]
 function _toISO(d){return d.getFullYear()+"-"+_pad2(d.getMonth()+1)+"-"+_pad2(d.getDate());}
 function expandRec(base,tipo,vezes){var out=[];for(var i=0;i<vezes;i++){var d=_isoParts(base);if(tipo==="diaria")d.setDate(d.getDate()+i);else if(tipo==="semanal")d.setDate(d.getDate()+i*7);else if(tipo==="quinzenal")d.setDate(d.getDate()+i*14);else if(tipo==="mensal")d.setMonth(d.getMonth()+i);out.push(_toISO(d));}return out;}
 function fmtBRd(iso){var m=String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?(m[3]+"/"+m[2]+"/"+m[1]):iso;}
+// ===== Expediente da secretaria: seg–sex, 9h–18h, exceto feriados nacionais =====
+// Páscoa (algoritmo de Meeus/Butcher) p/ calcular feriados móveis
+function _pascoa(y){var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;return new Date(y,mes-1,dia);}
+function _feriadosBR(y){
+  var s={},pad=function(n){return(n<10?"0":"")+n;},add=function(mo,d){s[pad(mo)+"-"+pad(d)]=1;};
+  // fixos nacionais
+  [[1,1],[4,21],[5,1],[9,7],[10,12],[11,2],[11,15],[11,20],[12,25]].forEach(function(f){add(f[0],f[1]);});
+  // móveis (baseados na Páscoa): Carnaval (seg e ter), Sexta-feira Santa, Corpus Christi
+  var p=_pascoa(y),off=function(n){var d=new Date(p);d.setDate(d.getDate()+n);return pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+  s[off(-48)]=1; s[off(-47)]=1; s[off(-2)]=1; s[off(60)]=1;
+  return s;
+}
+var _ferCache={};
+function ehFeriado(d){var y=d.getFullYear();if(!_ferCache[y])_ferCache[y]=_feriadosBR(y);var mo=(d.getMonth()+1),dd=d.getDate();var k=(mo<10?"0":"")+mo+"-"+(dd<10?"0":"")+dd;return !!_ferCache[y][k];}
+// true se o momento 'd' está FORA do expediente (fim de semana, feriado, antes das 9h ou 18h+)
+function foraExpediente(d){d=d||new Date();var wd=d.getDay();if(wd===0||wd===6)return true;if(ehFeriado(d))return true;var h=d.getHours();return (h<9||h>=18);}
 function renderRDatas(){var box=id("rDatasList");if(!box)return;box.innerHTML=rDatas.slice().sort().map(function(d,i){return '<span style="display:inline-flex;gap:6px;align-items:center;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:999px;padding:4px 6px 4px 12px;font-size:13px">'+fmtBRd(d)+'<button type="button" data-rm="'+i+'" style="border:0;background:none;cursor:pointer;color:var(--crit);font-weight:700">×</button></span>';}).join("")||'<span style="font-size:12px;color:var(--ink-faint)">Nenhuma data adicionada.</span>';box.querySelectorAll("[data-rm]").forEach(function(b){b.onclick=function(){var a=rDatas.slice().sort();a.splice(+b.getAttribute("data-rm"),1);rDatas=a;renderRDatas();};});}
 id("rDataAddBtn").onclick=function(){var v=id("rDataAdd").value;if(!v){alert("Escolha uma data");return;}if(rDatas.indexOf(v)<0)rDatas.push(v);id("rDataAdd").value="";renderRDatas();};
 id("rRepeat").onchange=function(){var v=this.value,rule=(v!=="nao"&&v!=="datas"),datas=(v==="datas");id("rRepeatWeeksWrap").style.display=rule?"inline-flex":"none";id("rDatasWrap").style.display=datas?"block":"none";var h=id("rRepeatHint");h.style.display=(v!=="nao")?"block":"none";h.textContent=datas?"A “Data” acima é a 1ª ocorrência. Adicione abaixo as outras datas. Cada uma vira uma solicitação separada.":"Cada ocorrência vira uma solicitação separada — a secretaria aprova uma a uma.";if(datas)renderRDatas();};
