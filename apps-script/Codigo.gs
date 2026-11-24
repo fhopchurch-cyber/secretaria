@@ -293,7 +293,7 @@ function _apiMap_(){
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
     migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva,
-    finalizarAtendimento:finalizarAtendimento
+    finalizarAtendimento:finalizarAtendimento, cancelarAtendimento:cancelarAtendimento, reabrirAtendimento:reabrirAtendimento
   };
 }
 function apiCall_(fn, args, token){
@@ -424,7 +424,7 @@ function _computeDados_(){
     var c = {
       nome: col(h,'respons'), dept: col(h,'departamento'), desc: col(h,'descri'),
       data: col(h,'data do evento'), ini: col(h,'início'), fim: col(h,'término'),
-      esp: col(h,'espaços'), email: col(h,'e-mail')
+      esp: col(h,'espaços'), email: col(h,'e-mail'), carimbo: col(h,'carimbo')
     };
     for(var i=1;i<v.length;i++){
       var r = v[i]; if(!r[c.data] && !r[c.desc]) continue;
@@ -435,7 +435,8 @@ function _computeDados_(){
         title: str(r[c.desc]) || 'Reserva',
         dept: str(r[c.dept]), solicitante: str(r[c.nome]), email: str(r[c.email]),
         date: d1, s: fmtTime(r[c.ini]), e: fmtTime(r[c.fim]),
-        spaces: splitSpaces(r[c.esp])
+        spaces: splitSpaces(r[c.esp]),
+        quando: (c.carimbo>-1 && r[c.carimbo]) ? fmtCarimbo_(r[c.carimbo]) : ''
       });
     }
   }catch(err){ out.erros.push('Form 1: '+err); }
@@ -443,7 +444,7 @@ function _computeDados_(){
   // ---- Form 3: Reserva pastoral ----
   try{
     var v3 = readSheet(cfg().fontes.form3_reserva), h3 = v3[0];
-    var c3 = { pastor: col(h3,'pastor'), data: col(h3,'data'), ini: col(h3,'início'), fim: col(h3,'término'), esp: col(h3,'espaço'), email: col(h3,'e-mail') };
+    var c3 = { pastor: col(h3,'pastor'), data: col(h3,'data'), ini: col(h3,'início'), fim: col(h3,'término'), esp: col(h3,'espaço'), email: col(h3,'e-mail'), carimbo: col(h3,'carimbo') };
     for(var j=1;j<v3.length;j++){
       var r3 = v3[j]; if(!r3[c3.data]) continue;
       var d3 = fmtDate(r3[c3.data]); if(d3 < CORTE) continue;
@@ -453,7 +454,8 @@ function _computeDados_(){
         title: 'Programação pastoral', tagPastor: str(r3[c3.pastor]),
         email: str(r3[c3.email]),
         date: d3, s: fmtTime(r3[c3.ini]), e: fmtTime(r3[c3.fim]),
-        spaces: splitSpaces(r3[c3.esp])
+        spaces: splitSpaces(r3[c3.esp]),
+        quando: (c3.carimbo>-1 && r3[c3.carimbo]) ? fmtCarimbo_(r3[c3.carimbo]) : ''
       });
     }
   }catch(err){ out.erros.push('Form 3: '+err); }
@@ -481,6 +483,7 @@ function _computeDados_(){
         date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
         spaces: splitSpaces(rw[cs.spaces]),
         needs: _needs,
+        quando: str(rw[cs.quando]),   // carimbo de quando a reserva foi feita (dia + hora)
         recorrencia: (_needs && _needs.recorrencia) ? _needs.recorrencia : null   // vira série ao aprovar
       });
     }
@@ -549,6 +552,7 @@ function _computeDados_(){
       if(st.override){ var o = st.override;
         ['nome','motivo','telefone','email','disp'].forEach(function(f){ if(o[f]!=null && o[f]!=='') p[f] = o[f]; });
         if(o.finalizado) p.finalizado = true;
+        if(o.cancelado){ p.cancelado = true; p.cancelPor = o.cancelPor || ''; p.cancelObs = o.cancelObs || ''; }
         p.editado = true;
       }
     } else p.status = 'pendente';
@@ -910,8 +914,42 @@ function finalizarAtendimento(key, done, pastor){
   ov.finalizado = (done !== false);
   var patch = { override: ov };
   if(pastor !== undefined && pastor !== null){ patch.pastor = String(pastor || ''); }
+  // finalizar e cancelar são excludentes
+  if(ov.cancelado){ ov.cancelado = false; delete ov.cancelPor; delete ov.cancelObs; }
   upsertEstado_(key, patch);
   return { ok:true };
+}
+
+/** Marca um atendimento como CANCELADO. `por` = 'pastor' | 'membro'. `obs` = observação livre.
+ *  `pastor` (opcional) atribui quem atendia — fica no registro do pastor. */
+function cancelarAtendimento(key, por, obs, pastor){
+  if(!key) throw new Error('Atendimento inválido.');
+  var est = readEstado_(), cur = est[key] || {};
+  var ov = (cur.override && typeof cur.override === 'object') ? cur.override : {};
+  ov.cancelado = true;
+  ov.cancelPor = (por === 'pastor' || por === 'membro') ? por : '';
+  ov.cancelObs = String(obs || '');
+  ov.finalizado = false; // cancelado é um estado terminal próprio
+  var patch = { override: ov };
+  if(pastor !== undefined && pastor !== null){ patch.pastor = String(pastor || ''); }
+  upsertEstado_(key, patch);
+  return { ok:true };
+}
+
+/** Reabre um atendimento finalizado OU cancelado (volta para ativo). */
+function reabrirAtendimento(key){
+  if(!key) throw new Error('Atendimento inválido.');
+  var est = readEstado_(), cur = est[key] || {};
+  var ov = (cur.override && typeof cur.override === 'object') ? cur.override : {};
+  ov.finalizado = false; ov.cancelado = false; delete ov.cancelPor; delete ov.cancelObs;
+  upsertEstado_(key, { override: ov });
+  return { ok:true };
+}
+
+/** Formata um carimbo de data/hora (Date ou string) como 'yyyy-MM-dd HH:mm'. */
+function fmtCarimbo_(v){
+  try{ if(v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd HH:mm'); }catch(_){}
+  return String(v || '');
 }
 
 // upsert por key — aplica só os campos passados em patch, preserva o resto

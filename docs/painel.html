@@ -12,7 +12,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva","finalizarAtendimento"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva","finalizarAtendimento","cancelarAtendimento","reabrirAtendimento"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -340,6 +340,22 @@ var google={script:{}};
   </form>
 </dialog>
 
+<dialog id="canDialog">
+  <form method="dialog" class="dlg" style="max-width:420px">
+    <h2>Cancelar atendimento</h2>
+    <p class="dsub">Registra o atendimento como <b>cancelado</b>. Fica no registro do pastor (não cria evento nem envia e-mail).</p>
+    <div class="field"><label>Quem cancelou?</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;gap:6px;align-items:center;font-size:14px;font-weight:600;color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;cursor:pointer;flex:1;min-width:120px"><input type="radio" name="canPor" value="membro" checked style="width:auto">O membro</label>
+        <label style="display:flex;gap:6px;align-items:center;font-size:14px;font-weight:600;color:var(--ink-soft);border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;cursor:pointer;flex:1;min-width:120px"><input type="radio" name="canPor" value="pastor" style="width:auto">O pastor</label>
+      </div>
+    </div>
+    <div class="field"><label for="canPastor">Pastor que atendia (opcional)</label><select id="canPastor" style="width:100%;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"></select></div>
+    <div class="field"><label for="canObs">Observação (opcional)</label><textarea id="canObs" rows="2" placeholder="ex.: fulana não retornou" style="width:100%;font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical"></textarea></div>
+    <div class="dlg-actions"><button type="button" class="btn-ghost" id="canCancel">Voltar</button><button type="button" class="btn-primary" id="canOk" style="background:var(--crit)">Confirmar cancelamento</button></div>
+  </form>
+</dialog>
+
 <dialog id="patDialog">
   <form method="dialog" class="dlg" id="patForm">
     <h2>Editar atendimento</h2>
@@ -378,6 +394,10 @@ function overlap(a,b){return a.date===b.date&&a.s&&a.e&&b.s&&b.e&&toMin(a.s)<toM
 function evSpaces(c){return (c&&c.spaces&&c.spaces.length)?c.spaces:(c&&c.space?[c.space]:[]);}
 function parseD(d){var p=d.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
 function fmtD(d){var t=parseD(d);return t.getDate()+" "+MESAB[t.getMonth()];}
+// carimbo "yyyy-MM-dd HH:mm" -> "DD/MM/AA HH:mm"; devolve o original se não casar
+function fmtQuando(q){q=String(q||"").trim();var m=q.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m)return q;return m[3]+"/"+m[2]+"/"+m[1].slice(2)+" "+m[4]+":"+m[5];}
+// horas de antecedência entre a reserva (quando) e o início do evento (date+s); null se não der p/ calcular
+function antecHoras(r){try{var m=String(r.quando||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(!m||!r.date)return null;var feita=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]);var ps=(r.s||"00:00").split(":");var dp=parseD(r.date);var ini=new Date(dp.getFullYear(),dp.getMonth(),dp.getDate(),+ps[0]||0,+ps[1]||0);return (ini-feita)/3600000;}catch(e){return null;}}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 function keyOf(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());}
 function p2(n){n=String(n);return n.length<2?"0"+n:n;}
@@ -452,6 +472,7 @@ function openDet(key){
     h+=drow("Horário", (r.s||"")+(r.e?" – "+r.e:""));
     h+=drow("Espaço(s)", (r.spaces||[]).join(", "));
     h+=drow("Origem", r.origem);
+    if(r.quando){var ahd=antecHoras(r);h+=drow("Reservado em", fmtQuando(r.quando)+(ahd!=null&&ahd<24?" (em cima da hora)":""));}
     h+=needsHtml(r.needs);
   } else if(p){
     titulo=p.nome||"Atendimento";
@@ -466,6 +487,7 @@ function openDet(key){
     h+=drow("Disponibilidade", p.disp);
     h+=drow("Pastor", p.pastor||p.tagPastor);
     h+=drow("Data do pedido", p.date?fmtD(p.date):"");
+    if(p.cancelado){h+=drow("Cancelado por", p.cancelPor==="pastor"?"Pastor":(p.cancelPor==="membro"?"Membro":"—"));if(p.cancelObs)h+=drow("Observação", p.cancelObs);}
     h+=drow("Origem", p.origem);
   } else return;
   document.getElementById("detTitle").textContent=titulo;
@@ -500,7 +522,8 @@ function wireActions(scope){
   scope.querySelectorAll("[data-desfazerpas]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-desfazerpas");var p=PAS[k];if(p){p.status="pendente";p.pastor="";render();}toast("↩ Reaberto");_bg("desfazer",{key:k});};});
   scope.querySelectorAll("[data-finalizar]").forEach(function(b){b.onclick=function(){openFin(b.getAttribute("data-finalizar"));};});
   scope.querySelectorAll("[data-finpastor]").forEach(function(b){b.onclick=function(){openFin(b.getAttribute("data-finpastor"));};});
-  scope.querySelectorAll("[data-reabrirfin]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-reabrirfin");var p=PAS[k];if(p){p.finalizado=false;render();}toast("↩ Reaberto");_bg("finalizarAtendimento",k,false);};});
+  scope.querySelectorAll("[data-reabrirfin]").forEach(function(b){b.onclick=function(){var k=b.getAttribute("data-reabrirfin");var p=PAS[k];if(p){p.finalizado=false;p.cancelado=false;p.cancelPor="";p.cancelObs="";render();}toast("↩ Reaberto");_bg("reabrirAtendimento",k);};});
+  scope.querySelectorAll("[data-cancelar]").forEach(function(b){b.onclick=function(){openCancel(b.getAttribute("data-cancelar"));};});
   var pss=scope.querySelector("#pasSearch");
   if(pss)pss.oninput=function(){window._pasQ=pss.value;var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);var n=document.getElementById("pasSearch");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}};
   scope.querySelectorAll("#pasView button").forEach(function(b){b.onclick=function(){window._pasView=b.getAttribute("data-pv");var bd=document.getElementById("body");bd.innerHTML=pastoralHtml();wireActions(bd);};});
@@ -768,6 +791,27 @@ document.getElementById("finOk").onclick=function(){
   toast(pastor?("✔ Finalizado · "+pastor):"✔ Finalizado");
   google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();}).finalizarAtendimento(k,true,pastor);
 };
+// ===== Cancelar atendimento =====
+var canKey=null;
+function openCancel(k){
+  canKey=k;var p=PAS[k];
+  var sel=document.getElementById("canPastor");sel.innerHTML='<option value="">(nenhum)</option>';cfgPastores().forEach(function(x){sel.add(new Option(x,x));});
+  try{sel.value=(p&&(p.pastor||p.tagPastor))||"";}catch(_){}
+  document.getElementById("canObs").value="";
+  var mb=document.querySelector('#canDialog input[name="canPor"][value="membro"]');if(mb)mb.checked=true;
+  var d=document.getElementById("canDialog");if(d.showModal)d.showModal();
+}
+document.getElementById("canCancel").onclick=function(){document.getElementById("canDialog").close();};
+document.getElementById("canOk").onclick=function(){
+  var k=canKey;if(!k)return;
+  var por=(document.querySelector('#canDialog input[name="canPor"]:checked')||{}).value||"membro";
+  var obs=document.getElementById("canObs").value.trim();
+  var pastor=document.getElementById("canPastor").value;
+  var p=PAS[k];if(p){p.cancelado=true;p.finalizado=false;p.cancelPor=por;p.cancelObs=obs;if(pastor)p.pastor=pastor;render();}
+  document.getElementById("canDialog").close();
+  toast("✖ Atendimento cancelado"+(por==="pastor"?" (pelo pastor)":" (pelo membro)"));
+  google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(e){toast("Erro ao salvar: "+(e.message||e),true);loadData();}).cancelarAtendimento(k,por,obs,pastor);
+};
 // ===== Editar atendimento =====
 var patKey=null;
 function openPatEdit(k){
@@ -1029,7 +1073,9 @@ function pedidosHtml(){
     var tag=r.tagPastor?'<span class="chip">✝ '+esc(r.tagPastor)+'</span>':(r.dept?'<span class="chip">'+esc(r.dept)+'</span>':'');
     var who=r.solicitante?'<span class="chip">por '+esc(r.solicitante)+'</span>':'';
     var cf=reqInConflict(r)?'<span class="chip crit">⚠ conflito</span>':'';
-    return '<div class="row"><input type="checkbox" class="selbox" data-sel="'+esc(r.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(r.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span></div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
+    var ah=antecHoras(r);
+    var resv=r.quando?('<span class="rmeta" style="color:var(--ink-faint);font-size:11.5px">🕒 Reservado em '+esc(fmtQuando(r.quando))+(ah!=null&&ah<24?' <span style="color:var(--crit);font-weight:700">· em cima da hora</span>':'')+'</span>'):"";
+    return '<div class="row"><input type="checkbox" class="selbox" data-sel="'+esc(r.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(r.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(r.title)+'</span><span class="rmeta">'+tag+who+'<span class="chip">'+esc(r.origem)+'</span>'+cf+'</span>'+resv+'</div><div style="display:flex;gap:5px;flex-wrap:wrap">'+chips+'</div><span class="rwhen mono">'+(r.date?fmtD(r.date):"—")+'<br>'+esc(r.s)+'–'+esc(r.e)+'</span>'+actionsHtml(r)+'</div>';
   }).join("")+'</div>';
 }
 function conflitosHtml(){
@@ -1042,14 +1088,17 @@ function conflitosHtml(){
 var MESN=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 function mesLabel(ym){var p=String(ym).split("-");return (MESN[(+p[1])-1]||"?")+"/"+p[0];}
 function relDados(){
-  var enc=DATA.pastoral.filter(function(p){return p.pastor&&(p.status==="encaminhado"||p.finalizado);});
-  var mesesObj={};enc.forEach(function(p){var m=String(p.date||"").slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mesesObj[m]=1;});
+  var enc=DATA.pastoral.filter(function(p){return p.pastor&&(p.status==="encaminhado"||p.finalizado)&&!p.cancelado;});
+  var cancAll=DATA.pastoral.filter(function(p){return p.cancelado;});
+  var mesesObj={};enc.concat(cancAll).forEach(function(p){var m=String(p.date||"").slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mesesObj[m]=1;});
   var meses=Object.keys(mesesObj).sort().reverse();
   var per=window._relPeriodo||"total";if(per!=="total"&&meses.indexOf(per)<0)per="total";
-  var filt=per==="total"?enc:enc.filter(function(p){return String(p.date||"").slice(0,7)===per;});
+  function noPer(p){return per==="total"||String(p.date||"").slice(0,7)===per;}
+  var filt=enc.filter(noPer);
   var cont={};filt.forEach(function(p){cont[p.pastor]=(cont[p.pastor]||0)+1;});
   var linhas=Object.keys(cont).map(function(k){return {pastor:k,n:cont[k]};}).sort(function(a,b){return b.n-a.n||a.pastor.localeCompare(b.pastor);});
-  return {per:per,meses:meses,linhas:linhas,total:filt.length};
+  var canc=cancAll.filter(noPer).sort(function(a,b){return String(b.date||"").localeCompare(String(a.date||""));});
+  return {per:per,meses:meses,linhas:linhas,total:filt.length,canc:canc};
 }
 function relatorioHtml(){
   var selSt='font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)';
@@ -1058,47 +1107,71 @@ function relatorioHtml(){
   var th='style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-faint);text-transform:uppercase;font-size:11px;letter-spacing:.04em"';
   var td='style="padding:6px 8px;border-bottom:1px solid var(--line)"';
   var tabela=d.linhas.length?('<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px"><thead><tr><th '+th+'>Pastor</th><th '+th+' style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-faint);text-transform:uppercase;font-size:11px">Atendimentos</th></tr></thead><tbody>'+d.linhas.map(function(r){return '<tr><td '+td+'>'+esc(r.pastor)+'</td><td '+td+' style="padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-weight:700">'+r.n+'</td></tr>';}).join("")+'<tr><td style="padding:8px;font-weight:800">Total</td><td style="padding:8px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+d.total+'</td></tr></tbody></table>'):'<div class="empty" style="margin-top:8px">Nenhum atendimento encaminhado'+(d.per==="total"?"":" nesse mês")+'.</div>';
-  return '<details class="adminsec" style="margin:0 0 12px"><summary>📊 Relatório por pastor</summary><p class="ahint">Quantos atendimentos cada pastor recebeu (encaminhados). Escolha o período.</p><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Período</label>'+sel+'<button class="btn-sm" id="relPrint" style="margin-left:auto">🖨 Imprimir</button></div>'+tabela+'</details>';
+  // registro de cancelados (quem cancelou + observação)
+  var cancBlock="";
+  if(d.canc&&d.canc.length){
+    var crows=d.canc.map(function(p){
+      var quem=p.cancelPor==="pastor"?"Pastor":(p.cancelPor==="membro"?"Membro":"—");
+      return '<tr><td '+td+'>'+(p.date?fmtD(p.date):"—")+'</td><td '+td+'>'+esc(p.nome||"—")+'</td><td '+td+'>'+esc(p.pastor||"—")+'</td><td '+td+'>'+quem+'</td><td '+td+'>'+esc(p.cancelObs||"")+'</td></tr>';
+    }).join("");
+    cancBlock='<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--crit);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">✖ Cancelados ('+d.canc.length+')</div>'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr><th '+th+'>Data</th><th '+th+'>Membro</th><th '+th+'>Pastor</th><th '+th+'>Cancelou</th><th '+th+'>Observação</th></tr></thead><tbody>'+crows+'</tbody></table></div>';
+  }
+  return '<details class="adminsec" style="margin:0 0 12px"><summary>📊 Relatório por pastor</summary><p class="ahint">Quantos atendimentos cada pastor recebeu (encaminhados/finalizados) e os cancelados. Escolha o período.</p><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:12px;font-weight:600;color:var(--ink-soft)">Período</label>'+sel+'<button class="btn-sm" id="relPrint" style="margin-left:auto">🖨 Imprimir</button></div>'+tabela+cancBlock+'</details>';
 }
 function printRelatorio(){
   var d=relDados();
   var titulo="Atendimentos por pastor — "+(d.per==="total"?"Total (todos os meses)":mesLabel(d.per));
   var rows=d.linhas.map(function(r){return '<tr><td>'+esc(r.pastor)+'</td><td style="text-align:right">'+r.n+'</td></tr>';}).join("")+'<tr><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700">'+d.total+'</td></tr>';
+  var cancHtml="";
+  if(d.canc&&d.canc.length){
+    var cr=d.canc.map(function(p){var quem=p.cancelPor==="pastor"?"Pastor":(p.cancelPor==="membro"?"Membro":"—");return '<tr><td>'+(p.date?fmtD(p.date):"—")+'</td><td>'+esc(p.nome||"—")+'</td><td>'+esc(p.pastor||"—")+'</td><td>'+quem+'</td><td>'+esc(p.cancelObs||"")+'</td></tr>';}).join("");
+    cancHtml='<h2 style="font-size:14px;margin:22px 0 6px;color:#b00">Cancelados ('+d.canc.length+')</h2><table style="max-width:760px"><thead><tr><th>Data</th><th>Membro</th><th>Pastor</th><th>Cancelou</th><th>Observação</th></tr></thead><tbody>'+cr+'</tbody></table>';
+  }
   var w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir",true);return;}
-  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(titulo)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{width:100%;border-collapse:collapse;font-size:13px;max-width:480px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #ddd}th{background:#f2f2f2;text-transform:uppercase;font-size:10.5px}</style></head><body><h1>FHOP · Atendimentos pastorais</h1><div class="sub">'+esc(titulo)+'</div><table><thead><tr><th>Pastor</th><th style="text-align:right">Atendimentos</th></tr></thead><tbody>'+rows+'</tbody></table><scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(titulo)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{width:100%;border-collapse:collapse;font-size:13px;max-width:480px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #ddd}th{background:#f2f2f2;text-transform:uppercase;font-size:10.5px}</style></head><body><h1>FHOP · Atendimentos pastorais</h1><div class="sub">'+esc(titulo)+'</div><table><thead><tr><th>Pastor</th><th style="text-align:right">Atendimentos</th></tr></thead><tbody>'+rows+'</tbody></table>'+cancHtml+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
   w.document.close();
 }
 function pastoralHtml(){
   var all=DATA.pastoral.filter(function(p){return p.status!=="excluido";});
   var q=(window._pasQ||"").toLowerCase();
   var view=window._pasView==="final"?"final":"ativos";
-  var aguard=all.filter(function(p){return !p.finalizado&&(!p.status||p.status==="pendente");}).length;
-  var fin=all.filter(function(p){return p.finalizado;}).length;
-  var enc=all.filter(function(p){return p.status==="encaminhado"&&!p.finalizado;}).length;
+  function isDone(p){return p.finalizado||p.cancelado;}
+  var aguard=all.filter(function(p){return !isDone(p)&&(!p.status||p.status==="pendente");}).length;
+  var fin=all.filter(function(p){return p.finalizado&&!p.cancelado;}).length;
+  var canc=all.filter(function(p){return p.cancelado;}).length;
+  var enc=all.filter(function(p){return p.status==="encaminhado"&&!isDone(p);}).length;
   var rep=relatorioHtml();
-  // sub-abas dentro de Atendimento: Ativos / Finalizados
-  var subtabs='<div class="seg" id="pasView" style="max-width:360px;margin:0 0 12px"><button type="button" data-pv="ativos" aria-pressed="'+(view==="ativos"?"true":"false")+'">Ativos ('+(aguard+enc)+')</button><button type="button" data-pv="final" aria-pressed="'+(view==="final"?"true":"false")+'">Finalizados ('+fin+')</button></div>';
+  // sub-abas dentro de Atendimento: Ativos / Concluídos (finalizados + cancelados)
+  var concl=fin+canc;
+  var subtabs='<div class="seg" id="pasView" style="max-width:360px;margin:0 0 12px"><button type="button" data-pv="ativos" aria-pressed="'+(view==="ativos"?"true":"false")+'">Ativos ('+(aguard+enc)+')</button><button type="button" data-pv="final" aria-pressed="'+(view==="final"?"true":"false")+'">Concluídos ('+concl+')</button></div>';
   // pool conforme a sub-aba + busca
-  var pool=all.filter(function(p){return view==="final"?p.finalizado:!p.finalizado;});
+  var pool=all.filter(function(p){return view==="final"?isDone(p):!isDone(p);});
   var list=pool.filter(function(p){return !q||((p.nome||"")+" "+(p.motivo||"")).toLowerCase().indexOf(q)>-1;});
-  var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)'+(fin?' · '+fin+' finalizado(s)':'')+'</span></div>';
-  if(!list.length)return rep+subtabs+bar+'<div class="empty">'+(view==="final"?"Nenhum atendimento finalizado.":"Nenhum atendimento ativo.")+'</div>';
-  // ordem: aguardando (0) → encaminhado (1) → finalizado (2)
-  function ordP(p){return p.finalizado?2:(p.status==="encaminhado"?1:0);}
+  var bar='<div class="toolbar"><input id="pasSearch" placeholder="Filtrar por nome/motivo…" value="'+esc(window._pasQ||"")+'" style="flex:1;max-width:340px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)"><span class="summ" style="margin:0">'+aguard+' aguardando · '+enc+' encaminhado(s)'+(fin?' · '+fin+' finalizado(s)':'')+(canc?' · '+canc+' cancelado(s)':'')+'</span></div>';
+  if(!list.length)return rep+subtabs+bar+'<div class="empty">'+(view==="final"?"Nenhum atendimento concluído.":"Nenhum atendimento ativo.")+'</div>';
+  // ordem: aguardando (0) → encaminhado (1) → finalizado (2) → cancelado (3)
+  function ordP(p){return p.cancelado?3:(p.finalizado?2:(p.status==="encaminhado"?1:0));}
   list.sort(function(a,b){return ordP(a)-ordP(b);});
   return rep+subtabs+bar+bulkBar()+'<div class="rows">'+list.map(function(p){
     var st=p.status||"pendente";
     var isEnc=st==="encaminhado";
-    var isFin=!!p.finalizado;
-    var chip=isFin
+    var isFin=!!p.finalizado&&!p.cancelado;
+    var isCan=!!p.cancelado;
+    var canTxt=isCan?("✖ Cancelado"+(p.cancelPor==="pastor"?" (pelo pastor)":(p.cancelPor==="membro"?" (pelo membro)":""))+(p.pastor?" · "+esc(p.pastor):"")):"";
+    var chip=isCan
+      ? '<span class="chip" style="color:var(--crit);background:var(--crit-bg);border-color:var(--crit-line)">'+canTxt+'</span>'+(p.cancelObs?'<span class="rmeta" style="color:var(--ink-faint)">Obs.: '+esc(p.cancelObs)+'</span>':"")
+      : isFin
       ? '<span class="chip" style="color:var(--ink-soft);background:var(--surface-2);border-color:var(--line-strong)">✔ Finalizado'+(p.pastor?" · "+esc(p.pastor):"")+'</span>'
       : (isEnc?'<span class="chip" style="color:var(--ok);background:var(--ok-bg);border-color:var(--ok-line)">✓ Encaminhado'+(p.pastor?" a "+esc(p.pastor):"")+'</span>':'<span class="chip" style="color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line)">aguardando</span>');
-    var acts=isFin
+    var acts=isCan
+      ? '<div class="rowactions"><button class="btn-sm" data-finpastor="'+esc(p.key)+'" title="Atribuir/alterar o pastor (registro)">👤 Pastor'+(p.pastor?": "+esc(p.pastor):"")+'</button><button class="btn-sm" data-reabrirfin="'+esc(p.key)+'" title="Reabrir">↩ Reabrir</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
+      : isFin
       ? '<div class="rowactions"><button class="btn-sm" data-finpastor="'+esc(p.key)+'" title="Atribuir/alterar o pastor que atendeu (só para o relatório)">👤 Pastor'+(p.pastor?": "+esc(p.pastor):"")+'</button><button class="btn-sm" data-reabrirfin="'+esc(p.key)+'" title="Reabrir">↩ Reabrir</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
       : isEnc
-      ? '<div class="rowactions"><button class="btn-sm ok" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado">✓ Finalizar</button><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
-      : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado (sem encaminhar)">✓ Finalizar</button><button class="btn-sm" data-migrarres="'+esc(p.key)+'" title="Era uma reserva? Volta para a aba Solicitações.">→ Reserva</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
-    return '<div class="row'+(isEnc?' aprovado':'')+'"'+(isFin?' style="opacity:.62"':'')+'><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
+      ? '<div class="rowactions"><button class="btn-sm ok" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado">✓ Finalizar</button><button class="btn-sm crit" data-cancelar="'+esc(p.key)+'" title="Cancelar atendimento">✖ Cancelar</button><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm" data-enc2="'+esc(p.key)+'">📅 Reagendar</button><button class="btn-sm crit" data-desfazerpas="'+esc(p.key)+'">↩</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>'
+      : '<div class="rowactions"><button class="btn-sm" data-editpas="'+esc(p.key)+'">✎ Editar</button><button class="btn-sm ok" data-enc2="'+esc(p.key)+'">📅 Encaminhar</button><button class="btn-sm" data-finalizar="'+esc(p.key)+'" title="Marcar como finalizado (sem encaminhar)">✓ Finalizar</button><button class="btn-sm crit" data-cancelar="'+esc(p.key)+'" title="Cancelar atendimento">✖ Cancelar</button><button class="btn-sm" data-migrarres="'+esc(p.key)+'" title="Era uma reserva? Volta para a aba Solicitações.">→ Reserva</button><button class="btn-sm" data-excluir="'+esc(p.key)+'">🗑</button></div>';
+    return '<div class="row'+(isEnc?' aprovado':'')+'"'+((isFin||isCan)?' style="opacity:.62"':'')+'><input type="checkbox" class="selbox" data-sel="'+esc(p.key)+'" title="Selecionar" style="width:auto;align-self:center;flex:0 0 auto"><div class="rmain" data-det="'+esc(p.key)+'" style="cursor:pointer" title="Ver detalhes"><span class="rtitle">'+esc(p.nome)+'</span><span class="rmeta">'+chip+(p.motivo?'<span>'+esc(p.motivo)+'</span>':"")+'</span>'+(p.disp?'<span class="rmeta" style="color:var(--ink-faint)">Disponível: '+esc(p.disp)+'</span>':"")+'</div>'+acts+'</div>';
   }).join("")+'</div>';
 }
 
