@@ -485,7 +485,7 @@ function _computeDados_(){
         date: dw, s: fmtTime(rw[cs.s]), e: fmtTime(rw[cs.e]),
         spaces: splitSpaces(rw[cs.spaces]),
         needs: _needs,
-        quando: str(rw[cs.quando]),   // carimbo de quando a reserva foi feita (dia + hora)
+        quando: fmtCarimbo_(rw[cs.quando]),   // carimbo de quando a reserva foi feita (dia + hora)
         recorrencia: (_needs && _needs.recorrencia) ? _needs.recorrencia : null   // vira série ao aprovar
       });
     }
@@ -969,11 +969,16 @@ function _reqPorEvento_(){
 }
 function manutPin_(){ return String(cfg().manutPin || 'manutencao'); }
 function validManutPin_(p){ return !!p && String(p).trim() === manutPin_(); }
+/** Normaliza a data (o Sheets pode devolver Date em vez de "yyyy-MM-dd") para a chave. */
+function manutDia_(v){
+  if(v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  var s = String(v||'').trim(); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? (m[1]+'-'+m[2]+'-'+m[3]) : s;
+}
 /** Mapa eventId|date -> [comentários] (histórico carimbado). */
 function readManut_(){
   var sh = getManut_(), v = sh.getDataRange().getValues(), map = {};
   for(var i=1;i<v.length;i++){ var r = v[i]; if(!r[0] && !r[1]) continue;
-    var k = String(r[0]) + '|' + String(r[1]);
+    var k = String(r[0]) + '|' + manutDia_(r[1]);
     (map[k] = map[k] || []).push({ autor:str(r[3]), texto:str(r[4]), carimbo:fmtCarimbo_(r[5]) });
   }
   return map;
@@ -1025,7 +1030,7 @@ function getRelatorioManut(){
     var eventId = String(r[0]), _r = req[eventId] || null;
     out.push({
       eventId: eventId,
-      date: String(r[1]),
+      date: manutDia_(r[1]),
       space: str(r[2]),
       autor: str(r[3]),
       texto: str(r[4]),

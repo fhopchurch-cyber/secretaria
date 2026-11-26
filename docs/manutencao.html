@@ -391,9 +391,12 @@ function renderDaySheet(isoD){
       google.script.run
         .withSuccessHandler(function(res){
           btn.disabled=false; ta.value="";
-          var lista=(res&&res.coment)||[];
-          // atualiza o evento em memória e re-renderiza
-          for(var i=0;i<EVENTS.length;i++){ if(EVENTS[i].id===ev.id && EVENTS[i].date===ev.date){ EVENTS[i].coment=lista; break; } }
+          var lista=(res&&res.coment&&res.coment.length)?res.coment:null;
+          // atualiza o evento em memória: usa a lista do servidor; se vier vazia, acrescenta local
+          for(var i=0;i<EVENTS.length;i++){ if(EVENTS[i].id===ev.id && EVENTS[i].date===ev.date){
+            EVENTS[i].coment = lista ? lista : (EVENTS[i].coment||[]).concat([{autor:autor,texto:texto,carimbo:nowCarimbo()}]);
+            break;
+          } }
           fb.textContent="Comentário registrado ✓"; fb.className="fb ok";
           renderDaySheet(isoD); render();
         })
@@ -425,10 +428,16 @@ function fmtCarimbo(c){ // "yyyy-MM-dd HH:mm" -> "DD/MM HH:mm"
   var m=String(c||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   return m ? (m[3]+"/"+m[2]+" "+m[4]+":"+m[5]) : String(c||"");
 }
-function fmtQuandoLongo(c){ // "yyyy-MM-dd HH:mm" -> "DD/MM/AAAA | HHhMMm"
-  var m=String(c||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  return m ? (m[3]+"/"+m[2]+"/"+m[1]+" | "+m[4]+"h"+m[5]+"m") : String(c||"");
+function fmtQuandoLongo(c){ // qualquer formato -> "DD/MM/AAAA | HHhMMm"
+  function z(n){return(n<10?"0":"")+n;}
+  var s=String(c||"").trim(); if(!s)return"";
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if(m)return m[3]+"/"+m[2]+"/"+m[1]+" | "+m[4]+"h"+m[5]+"m";
+  var d=new Date(s); // casa o Date cru do JS ("Mon Nov 23 2026 14:00:00 GMT-0300")
+  if(!isNaN(d.getTime()))return z(d.getDate())+"/"+z(d.getMonth()+1)+"/"+d.getFullYear()+" | "+z(d.getHours())+"h"+z(d.getMinutes())+"m";
+  return s;
 }
+function nowCarimbo(){var d=new Date();function z(n){return(n<10?"0":"")+n;}return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+" "+z(d.getHours())+":"+z(d.getMinutes());}
 
 document.getElementById("daySheetClose").onclick=closeDay;
 document.getElementById("dayOv").addEventListener("click",function(e){if(e.target===this)closeDay();});
