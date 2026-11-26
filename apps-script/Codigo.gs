@@ -284,7 +284,7 @@ function editarEvento(eventId, campos, escopo){
  * API (para o site hospedado no GitHub Pages chamar por fetch).
  * Responde JSON. Funções sensíveis exigem token (login por senha).
  * ========================================================= */
-var API_PUBLIC = { getOcupacao:1, enviarReserva:1, enviarReservaDatas:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1, getAgendaManut:1, comentarManut:1 };
+var API_PUBLIC = { getOcupacao:1, enviarReserva:1, enviarReservaDatas:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1, getAgendaManut:1, comentarManut:1, editarComentarioManut:1, excluirComentarioManut:1 };
 function _apiMap_(){
   return {
     getOcupacao:getOcupacao, enviarReserva:enviarReserva, enviarReservaDatas:enviarReservaDatas, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl, getPagina:getPagina,
@@ -295,7 +295,8 @@ function _apiMap_(){
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
     migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva,
     finalizarAtendimento:finalizarAtendimento, cancelarAtendimento:cancelarAtendimento, reabrirAtendimento:reabrirAtendimento,
-    getAgendaManut:getAgendaManut, comentarManut:comentarManut, getRelatorioManut:getRelatorioManut
+    getAgendaManut:getAgendaManut, comentarManut:comentarManut, getRelatorioManut:getRelatorioManut,
+    editarComentarioManut:editarComentarioManut, excluirComentarioManut:excluirComentarioManut
   };
 }
 function apiCall_(fn, args, token){
@@ -959,7 +960,7 @@ function fmtCarimbo_(v){
 /* ===== Manutenção: visão operacional (com responsável) + comentários internos =====
  * Acesso por PIN próprio, separado do login do painel. Para trocar o PIN:
  * Apps Script → Configurações do projeto → Propriedades do script → MANUT_PIN. */
-var MANUT_COLS = ['eventId','date','space','autor','texto','carimbo','dept'];
+var MANUT_COLS = ['eventId','date','space','autor','texto','carimbo','dept','id'];
 function getManut_(){ return getSheet_(getCentralSS_(), 'manutencao', MANUT_COLS); }
 /** Mapa eventId -> solicitação de origem (p/ saber quando foi reservado e o departamento). */
 function _reqPorEvento_(){
@@ -979,7 +980,7 @@ function readManut_(){
   var sh = getManut_(), v = sh.getDataRange().getValues(), map = {};
   for(var i=1;i<v.length;i++){ var r = v[i]; if(!r[0] && !r[1]) continue;
     var k = String(r[0]) + '|' + manutDia_(r[1]);
-    (map[k] = map[k] || []).push({ autor:str(r[3]), texto:str(r[4]), carimbo:fmtCarimbo_(r[5]) });
+    (map[k] = map[k] || []).push({ id:str(r[7]), autor:str(r[3]), texto:str(r[4]), carimbo:fmtCarimbo_(r[5]) });
   }
   return map;
 }
@@ -1019,7 +1020,32 @@ function comentarManut(pin, eventId, date, space, autor, texto, dept){
   eventId = str(eventId); date = str(date);
   if(!eventId && !date) throw new Error('Reserva inválida.');
   var carimbo = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-  getManut_().appendRow([eventId, date, str(space), str(autor), texto, carimbo, str(dept)]);
+  var id = Utilities.getUuid();
+  getManut_().appendRow([eventId, date, str(space), str(autor), texto, carimbo, str(dept), id]);
+  return { ok:true, coment: (readManut_())[eventId + '|' + date] || [] };
+}
+/** Acha a linha (1-based) de um comentário pelo id. */
+function _findManutRow_(id){
+  id = str(id); if(!id) return null;
+  var sh = getManut_(), v = sh.getDataRange().getValues();
+  for(var i=1;i<v.length;i++){ if(String(v[i][7]) === id) return { sh:sh, row:i+1, vals:v[i] }; }
+  return null;
+}
+/** Edita o texto de um comentário da manutenção. */
+function editarComentarioManut(pin, id, texto){
+  if(!validManutPin_(pin)) throw new Error('PIN inválido.');
+  texto = str(texto); if(!texto) throw new Error('Escreva um comentário.');
+  var f = _findManutRow_(id); if(!f) throw new Error('Comentário não encontrado.');
+  f.sh.getRange(f.row, 5).setValue(texto); // coluna E = texto
+  var eventId = String(f.vals[0]), date = manutDia_(f.vals[1]);
+  return { ok:true, coment: (readManut_())[eventId + '|' + date] || [] };
+}
+/** Exclui um comentário da manutenção. */
+function excluirComentarioManut(pin, id){
+  if(!validManutPin_(pin)) throw new Error('PIN inválido.');
+  var f = _findManutRow_(id); if(!f) throw new Error('Comentário não encontrado.');
+  var eventId = String(f.vals[0]), date = manutDia_(f.vals[1]);
+  f.sh.deleteRow(f.row);
   return { ok:true, coment: (readManut_())[eventId + '|' + date] || [] };
 }
 /** Relatório de manutenção (painel): todos os comentários enriquecidos com espaço, departamento,
@@ -1030,6 +1056,7 @@ function getRelatorioManut(){
     var eventId = String(r[0]), _r = req[eventId] || null;
     out.push({
       eventId: eventId,
+      id: str(r[7]),
       date: manutDia_(r[1]),
       space: str(r[2]),
       autor: str(r[3]),

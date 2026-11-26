@@ -13,7 +13,7 @@
 // Esta página usa getAgendaManut e comentarManut (protegidos por PIN próprio).
 var google={script:{}};
 (function(){
-  var FN=["getAgendaManut","comentarManut"];
+  var FN=["getAgendaManut","comentarManut","editarComentarioManut","excluirComentarioManut"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -138,8 +138,14 @@ var google={script:{}};
   .coms{margin:10px 0 0;display:flex;flex-direction:column;gap:7px}
   .com{background:var(--surface-2);border-radius:9px;padding:7px 10px}
   .com .cm-t{font-size:13px;color:var(--ink);line-height:1.4;word-break:break-word}
-  .com .cm-m{font-size:11px;color:var(--ink-faint);margin-top:3px;font-family:"IBM Plex Mono",monospace}
+  .com .cm-m{font-size:11px;color:var(--ink-faint);margin-top:4px;font-family:"IBM Plex Mono",monospace;display:flex;align-items:center;justify-content:space-between;gap:8px}
   .com .cm-m b{color:var(--ink-soft);font-weight:600;font-family:"IBM Plex Sans",sans-serif}
+  .cm-ctrl{display:inline-flex;gap:4px;flex:none}
+  .cm-btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-soft);font-family:"IBM Plex Sans",sans-serif;font-size:11px;font-weight:600;padding:2px 9px;border-radius:7px;cursor:pointer}
+  .cm-btn:hover{border-color:var(--ink-faint)}
+  .cm-btn.del{color:#c62828}
+  .cm-btn.del:hover{border-color:#c62828;background:#fdeaea}
+  .cm-edit{width:100%;font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--accent);border-radius:9px;background:var(--surface);color:var(--ink);resize:vertical;min-height:52px}
   .addc{margin-top:9px;display:flex;flex-direction:column;gap:7px}
   .addc textarea{width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2);color:var(--ink);resize:vertical;min-height:56px}
   .addc .row{display:flex;gap:8px;align-items:center}
@@ -379,6 +385,9 @@ function renderDaySheet(isoD){
   var b=document.getElementById("daySheetBody");
   if(!evs.length){b.innerHTML='<div class="empty" style="padding:30px 10px">Nenhuma reserva neste dia.</div>';return;}
   b.innerHTML=evs.map(function(ev,ix){ return rsvHtml(ev,ix); }).join("");
+  // liga editar/excluir de cada comentário
+  b.querySelectorAll("[data-cedit]").forEach(function(btn){btn.onclick=function(){startEditCom(isoD,btn.getAttribute("data-cedit"));};});
+  b.querySelectorAll("[data-cdel]").forEach(function(btn){btn.onclick=function(){delCom(isoD,btn.getAttribute("data-cdel"));};});
   // liga cada caixa de comentário
   evs.forEach(function(ev,ix){
     var box=b.querySelector('[data-ix="'+ix+'"]'); if(!box)return;
@@ -405,10 +414,46 @@ function renderDaySheet(isoD){
     });
   });
 }
+function findEvtByComId(cid){
+  for(var i=0;i<EVENTS.length;i++){var cs=EVENTS[i].coment||[];for(var j=0;j<cs.length;j++){if(cs[j].id===cid)return EVENTS[i];}}
+  return null;
+}
+function applyComList(evObj,lista){
+  if(!evObj)return;
+  for(var i=0;i<EVENTS.length;i++){if(EVENTS[i].id===evObj.id&&EVENTS[i].date===evObj.date){EVENTS[i].coment=lista||[];break;}}
+}
+function delCom(isoD,cid){
+  if(!cid)return;
+  if(!window.confirm("Excluir este comentário? Não dá pra desfazer."))return;
+  var evObj=findEvtByComId(cid);
+  google.script.run
+    .withSuccessHandler(function(res){applyComList(evObj,(res&&res.coment)||[]);renderDaySheet(isoD);render();})
+    .withFailureHandler(function(e){window.alert((e&&e.message)||"Não consegui excluir. Tente de novo.");})
+    .excluirComentarioManut(PIN,cid);
+}
+function startEditCom(isoD,cid){
+  if(!cid)return;
+  var el=document.querySelector('.com[data-cid="'+cid+'"]');if(!el)return;
+  var evObj=findEvtByComId(cid),cur="";
+  if(evObj)(evObj.coment||[]).forEach(function(c){if(c.id===cid)cur=c.texto;});
+  el.innerHTML='<textarea class="cm-edit"></textarea><div class="cm-m"><span class="fb"></span><span class="cm-ctrl"><button type="button" class="cm-btn save">Salvar</button><button type="button" class="cm-btn" data-cancel="1">Cancelar</button></span></div>';
+  var ta=el.querySelector("textarea");ta.value=cur;ta.focus();
+  el.querySelector("[data-cancel]").onclick=function(){renderDaySheet(isoD);};
+  el.querySelector(".save").onclick=function(){
+    var nv=(ta.value||"").trim();var fb=el.querySelector(".fb");
+    if(!nv){fb.textContent="Escreva algo.";return;}
+    var btn=this;btn.disabled=true;fb.textContent="Salvando…";
+    google.script.run
+      .withSuccessHandler(function(res){applyComList(evObj,(res&&res.coment)||[]);renderDaySheet(isoD);render();})
+      .withFailureHandler(function(e){btn.disabled=false;fb.textContent=(e&&e.message)||"Falhou. Tente de novo.";})
+      .editarComentarioManut(PIN,cid,nv);
+  };
+}
 function rsvHtml(ev,ix){
   var coms=(ev.coment||[]).map(function(c){
-    return '<div class="com"><div class="cm-t">'+esc(c.texto)+'</div><div class="cm-m">'
-      +(c.autor?'<b>'+esc(c.autor)+'</b> · ':'')+esc(fmtCarimbo(c.carimbo))+'</div></div>';
+    var ctrl=c.id?('<span class="cm-ctrl"><button type="button" class="cm-btn" data-cedit="'+esc(c.id)+'">editar</button><button type="button" class="cm-btn del" data-cdel="'+esc(c.id)+'">excluir</button></span>'):'';
+    return '<div class="com" data-cid="'+esc(c.id||"")+'"><div class="cm-t">'+esc(c.texto)+'</div><div class="cm-m">'
+      +'<span>'+(c.autor?'<b>'+esc(c.autor)+'</b> · ':'')+esc(fmtCarimbo(c.carimbo))+'</span>'+ctrl+'</div></div>';
   }).join("");
   var dept=ev.dept?('<span class="dep">'+esc(ev.dept)+'</span>'):'';
   var resv=ev.quando?('<div class="rsv-when">🕒 Reservado em '+esc(fmtQuandoLongo(ev.quando))+'</div>'):'';
