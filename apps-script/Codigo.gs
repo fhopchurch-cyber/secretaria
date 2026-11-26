@@ -108,6 +108,7 @@ function cfg(){
     painelPass: stored.painelPass || 'fhopchurch1234',
     recoveryEmail: stored.recoveryEmail || 'fhopchurch@fhop.com',
     cores: Object.assign({}, CORES_DEF, stored.cores||{}),
+    manutPin: stored.manutPin || PropertiesService.getScriptProperties().getProperty('MANUT_PIN') || 'manutencao',
     pagina: normPagina_(stored.pagina)
   };
   return _CFG;
@@ -966,7 +967,7 @@ function _reqPorEvento_(){
   try{ var dd = getDados(); (dd.requests||[]).forEach(function(r){ if(r.eventId) m[r.eventId] = r; }); }catch(_){}
   return m;
 }
-function manutPin_(){ return String(PropertiesService.getScriptProperties().getProperty('MANUT_PIN') || 'manutencao'); }
+function manutPin_(){ return String(cfg().manutPin || 'manutencao'); }
 function validManutPin_(p){ return !!p && String(p).trim() === manutPin_(); }
 /** Mapa eventId|date -> [comentários] (histórico carimbado). */
 function readManut_(){

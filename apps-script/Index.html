@@ -1143,6 +1143,8 @@ function printRelatorio(){
   w.document.close();
 }
 /* ===== Relatório de manutenção (comentários por espaço / departamento) ===== */
+var MANUT_URL="https://fhopchurch-cyber.github.io/secretaria/manutencao.html";
+function openManut(){window.open(MANUT_URL,"_blank","noopener");}
 var MANUT_REL=null, MANUT_REL_LOADING=false;
 function loadManutRel(force){
   if(MANUT_REL_LOADING)return;
@@ -1201,7 +1203,8 @@ function manutHtml(){
   return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
     +seg+'<label style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-left:4px">Período</label>'+sel
     +'<button class="btn-sm" id="manutRefresh">Atualizar</button>'
-    +'<button class="btn-sm" id="manutPrint" style="margin-left:auto">🖨 Imprimir</button></div>'
+    +'<button class="btn-primary" id="manutOpen" style="margin-left:auto;padding:8px 12px">🔗 Abrir página da manutenção</button>'
+    +'<button class="btn-sm" id="manutPrint">🖨 Imprimir</button></div>'
     +'<p class="ahint" style="margin:0 0 10px">'+d.total+' comentário(s) da manutenção · agrupado '+(d.grp==="dept"?"por departamento (o escolhido na reserva)":"por espaço")+'.</p>'
     +body;
 }
@@ -1210,6 +1213,7 @@ function wireManut(b){
   var sp=b.querySelector("#manutPer");if(sp)sp.onchange=function(){window._manutPer=this.value;renderBody();};
   b.querySelectorAll("#manutGroup button").forEach(function(x){x.onclick=function(){window._manutGroup=x.getAttribute("data-g");renderBody();};});
   var rf=b.querySelector("#manutRefresh");if(rf)rf.onclick=function(){MANUT_REL=null;loadManutRel(true);renderBody();};
+  var op=b.querySelector("#manutOpen");if(op)op.onclick=function(){openManut();};
   var pr=b.querySelector("#manutPrint");if(pr)pr.onclick=function(){printManut();};
 }
 function printManut(){
@@ -1311,6 +1315,9 @@ function adminHtml(){
     '<div class="field"><label>Senha</label><div style="display:flex;gap:8px;align-items:center"><input id="cfgPass" data-cfg="painelPass" type="password" value="'+esc(A.painelPass||"")+'" style="flex:1"><button type="button" class="btn-sm" id="cfgPassShow">👁 Mostrar</button></div></div>'+
     '<div class="field"><label>E-mail de recuperação (recebe o lembrete no "esqueci a senha")</label><input data-cfg="recoveryEmail" value="'+esc(A.recoveryEmail||"")+'" placeholder="fhopchurch@fhop.com"></div>'+
     '</div>';
+  h+='<div class="adminsec"><h3>Página da manutenção</h3><p class="ahint">A equipe de manutenção acessa as reservas por um link próprio, protegido por este <b>PIN</b> (separado da senha do painel). Altere aqui quando quiser.</p>'+
+    '<div class="field"><label>PIN da manutenção</label><div style="display:flex;gap:8px;align-items:center"><input id="cfgManutPin" data-cfg="manutPin" type="text" value="'+esc(A.manutPin||"")+'" placeholder="ex.: 4071" style="flex:1"><button type="button" class="btn-sm" id="manutOpen2">🔗 Abrir página</button></div></div>'+
+    '</div>';
   var P=A.pagina||{titulo:"",lead:"",rodape:"",insumos:[]},Pins=(P.insumos instanceof Array)?P.insumos:[];
   var taSt='width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink);resize:vertical';
   h+='<details class="adminsec"><summary>Página de reserva (pública)</summary><p class="ahint">Personalize textos, necessidades e campos do formulário público — sem mexer no código.</p>'+
@@ -1402,6 +1409,7 @@ function applyUnrec(scope){
   google.script.run.withSuccessHandler(function(res){BUSY=false;if(res&&res.token)AUTH=res.token;CFG=JSON.parse(JSON.stringify(ADMIN));toast("✓ "+n+" espaço(s) mapeado(s)");loadData();}).withFailureHandler(function(e){BUSY=false;toast("Erro: "+(e.message||e),true);}).saveConfig(ADMIN,AUTH);
 }
 function wireAdmin(scope){
+  var mo2=scope.querySelector("#manutOpen2");if(mo2)mo2.onclick=function(){openManut();};
   var ub=scope.querySelector("#unrecBox");
   if(ub){google.script.run.withSuccessHandler(function(list){renderUnrec(ub,list);}).withFailureHandler(function(){ub.textContent="Não foi possível ler a agenda.";}).getEspacosNaoReconhecidos();}
   var ua=scope.querySelector("#unrecApply");if(ua)ua.onclick=function(){applyUnrec(scope);};
