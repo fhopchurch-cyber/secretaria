@@ -283,7 +283,7 @@ function editarEvento(eventId, campos, escopo){
  * API (para o site hospedado no GitHub Pages chamar por fetch).
  * Responde JSON. Funções sensíveis exigem token (login por senha).
  * ========================================================= */
-var API_PUBLIC = { getOcupacao:1, enviarReserva:1, enviarReservaDatas:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1 };
+var API_PUBLIC = { getOcupacao:1, enviarReserva:1, enviarReservaDatas:1, recuperarSenha:1, getMe:1, getSelfUrl:1, getPagina:1, getAgendaManut:1, comentarManut:1 };
 function _apiMap_(){
   return {
     getOcupacao:getOcupacao, enviarReserva:enviarReserva, enviarReservaDatas:enviarReservaDatas, recuperarSenha:recuperarSenha, getMe:getMe, getSelfUrl:getSelfUrl, getPagina:getPagina,
@@ -293,7 +293,8 @@ function _apiMap_(){
     adicionarOcorrencia:adicionarOcorrencia, adicionarOcorrenciasMultiplas:adicionarOcorrenciasMultiplas, getAgendaMes:getAgendaMes, getEspacosNaoReconhecidos:getEspacosNaoReconhecidos,
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
     migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva,
-    finalizarAtendimento:finalizarAtendimento, cancelarAtendimento:cancelarAtendimento, reabrirAtendimento:reabrirAtendimento
+    finalizarAtendimento:finalizarAtendimento, cancelarAtendimento:cancelarAtendimento, reabrirAtendimento:reabrirAtendimento,
+    getAgendaManut:getAgendaManut, comentarManut:comentarManut
   };
 }
 function apiCall_(fn, args, token){
@@ -833,21 +834,23 @@ function getAgendaMes(ano, mes){
   ano = +ano; mes = +mes;
   var ck = 'ag-' + ano + '-' + mes;
   try{ var hit = CacheService.getScriptCache().get(ck); if(hit) return JSON.parse(hit); }catch(_){}
-  var out = [];
+  var out = [], _com = readManut_();
   try{
     var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
     var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
     for(var i=0;i<evs.length;i++){ var ev = evs[i];
       var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
+      var _d = Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd');
       out.push({
         id: ev.getId(),
         title: ev.getTitle(),
-        date: Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'),
+        date: _d,
         s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
         space: _all[0] || null,
         spaces: _all,
-        serie: serieDe_(ev.getDescription())
+        serie: serieDe_(ev.getDescription()),
+        coment: _com[ev.getId() + '|' + _d] || []
       });
     }
   }catch(e){}
@@ -950,6 +953,59 @@ function reabrirAtendimento(key){
 function fmtCarimbo_(v){
   try{ if(v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd HH:mm'); }catch(_){}
   return String(v || '');
+}
+
+/* ===== Manutenção: visão operacional (com responsável) + comentários internos =====
+ * Acesso por PIN próprio, separado do login do painel. Para trocar o PIN:
+ * Apps Script → Configurações do projeto → Propriedades do script → MANUT_PIN. */
+var MANUT_COLS = ['eventId','date','space','autor','texto','carimbo'];
+function getManut_(){ return getSheet_(getCentralSS_(), 'manutencao', MANUT_COLS); }
+function manutPin_(){ return String(PropertiesService.getScriptProperties().getProperty('MANUT_PIN') || 'manutencao'); }
+function validManutPin_(p){ return !!p && String(p).trim() === manutPin_(); }
+/** Mapa eventId|date -> [comentários] (histórico carimbado). */
+function readManut_(){
+  var sh = getManut_(), v = sh.getDataRange().getValues(), map = {};
+  for(var i=1;i<v.length;i++){ var r = v[i]; if(!r[0] && !r[1]) continue;
+    var k = String(r[0]) + '|' + String(r[1]);
+    (map[k] = map[k] || []).push({ autor:str(r[3]), texto:str(r[4]), carimbo:fmtCarimbo_(r[5]) });
+  }
+  return map;
+}
+/** Agenda para a equipe de manutenção: data, horário, local e RESPONSÁVEL (título do evento)
+ *  + comentários internos de cada reserva. Protegida pelo PIN de manutenção. */
+function getAgendaManut(pin, ano, mes){
+  if(!validManutPin_(pin)) throw new Error('PIN inválido.');
+  ano = +ano; mes = +mes;
+  var com = readManut_(), out = [];
+  try{
+    var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
+    var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
+    for(var i=0;i<evs.length;i++){ var ev = evs[i];
+      var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
+      var d = Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'), id = ev.getId();
+      out.push({
+        id: id,
+        resp: str(ev.getTitle()) || '(sem título)',
+        date: d,
+        s: Utilities.formatDate(ev.getStartTime(), TZ, 'HH:mm'),
+        e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
+        space: _all[0] || null,
+        spaces: _all,
+        coment: com[id + '|' + d] || []
+      });
+    }
+  }catch(e){}
+  return out;
+}
+/** Registra um comentário interno da manutenção numa reserva (histórico carimbado). */
+function comentarManut(pin, eventId, date, space, autor, texto){
+  if(!validManutPin_(pin)) throw new Error('PIN inválido.');
+  texto = str(texto); if(!texto) throw new Error('Escreva um comentário.');
+  eventId = str(eventId); date = str(date);
+  if(!eventId && !date) throw new Error('Reserva inválida.');
+  var carimbo = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+  getManut_().appendRow([eventId, date, str(space), str(autor), texto, carimbo]);
+  return { ok:true, coment: (readManut_())[eventId + '|' + date] || [] };
 }
 
 // upsert por key — aplica só os campos passados em patch, preserva o resto

@@ -288,6 +288,7 @@
   <form method="dialog" class="dlg" id="evtForm" style="max-width:440px">
     <h2>Editar evento</h2>
     <p class="dsub" id="evtSub">Ajusta o evento no próprio Google Agenda. Só o que você preencher é alterado.</p>
+    <div id="evtManut" style="display:none"></div>
     <div class="field"><label>Espaço(s)</label><div class="spacegrid" id="evtSpaceGrid"></div></div>
     <div class="grid2">
       <div class="field"><label for="evtDate">Data</label><input id="evtDate" type="date"></div>
@@ -709,6 +710,23 @@ function askScope(title,cb){
   document.getElementById("scopeCancel").onclick=function(){d.close();};
   if(d.showModal)d.showModal();
 }
+function renderEvtManut(id,date){
+  var box=document.getElementById("evtManut");if(!box)return;
+  var com=[],cl=(DATA&&DATA.calendar)||[];
+  for(var i=0;i<cl.length;i++){var c=cl[i];if(c.id===id&&(!date||c.date===date)&&c.coment&&c.coment.length){com=c.coment;break;}}
+  if(!com.length){box.style.display="none";box.innerHTML="";return;}
+  var itens=com.map(function(c){
+    var m=String(c.carimbo||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    var quando=m?(m[3]+"/"+m[2]+" "+m[4]+":"+m[5]):esc(c.carimbo||"");
+    return '<div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px">'
+      +'<div style="font-size:13px;line-height:1.4">'+esc(c.texto)+'</div>'
+      +'<div style="font-size:11px;color:var(--ink-faint);margin-top:3px">'+(c.autor?'<b>'+esc(c.autor)+'</b> · ':'')+quando+'</div></div>';
+  }).join("");
+  box.innerHTML='<div style="background:var(--warn-soft,#fdf0dd);border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:12px">'
+    +'<div style="font-size:11.5px;font-weight:700;color:var(--warn,#b45309);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">🛠 Manutenção ('+com.length+')</div>'
+    +'<div style="display:flex;flex-direction:column;gap:6px">'+itens+'</div></div>';
+  box.style.display="block";
+}
 function openEvtEdit(id,title,cur,date,s,e,serie){
   evtId=id;evtSerie=serie||"";
   var cs=(cur||"").split(",").map(function(x){return x.trim();}).filter(Boolean);
@@ -722,6 +740,7 @@ function openEvtEdit(id,title,cur,date,s,e,serie){
   var _rq=null;for(var _i=0;_i<(DATA.requests||[]).length;_i++){var _x=DATA.requests[_i];if(_x.eventId&&_x.eventId===id&&_x.quando){_rq=_x;break;}}
   var _resv=_rq?("  ·  🕒 Reservado em "+fmtQuando(_rq.quando)+(antecHoras(_rq)!=null&&antecHoras(_rq)<24?" (em cima da hora)":"")):"";
   document.getElementById("evtSub").textContent="Evento: "+title+(evtSerie?" · recorrente (série)":"")+_resv;
+  renderEvtManut(id,date);
   var gw=document.getElementById("evtGuestsWrap"),gb=document.getElementById("evtGuests");
   gw.style.display="none";gb.innerHTML='<span style="font-size:12px;color:var(--ink-faint)">Carregando convidados…</span>';gw.style.display="block";
   google.script.run.withSuccessHandler(function(list){
