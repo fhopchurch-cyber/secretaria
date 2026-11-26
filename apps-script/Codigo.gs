@@ -294,7 +294,7 @@ function _apiMap_(){
     definirEspacoEvento:definirEspacoEvento, editarEvento:editarEvento, excluirEvento:excluirEvento, getConvidados:getConvidados,
     migrarParaAtendimento:migrarParaAtendimento, migrarParaReserva:migrarParaReserva,
     finalizarAtendimento:finalizarAtendimento, cancelarAtendimento:cancelarAtendimento, reabrirAtendimento:reabrirAtendimento,
-    getAgendaManut:getAgendaManut, comentarManut:comentarManut
+    getAgendaManut:getAgendaManut, comentarManut:comentarManut, getRelatorioManut:getRelatorioManut
   };
 }
 function apiCall_(fn, args, token){
@@ -958,8 +958,14 @@ function fmtCarimbo_(v){
 /* ===== Manutenção: visão operacional (com responsável) + comentários internos =====
  * Acesso por PIN próprio, separado do login do painel. Para trocar o PIN:
  * Apps Script → Configurações do projeto → Propriedades do script → MANUT_PIN. */
-var MANUT_COLS = ['eventId','date','space','autor','texto','carimbo'];
+var MANUT_COLS = ['eventId','date','space','autor','texto','carimbo','dept'];
 function getManut_(){ return getSheet_(getCentralSS_(), 'manutencao', MANUT_COLS); }
+/** Mapa eventId -> solicitação de origem (p/ saber quando foi reservado e o departamento). */
+function _reqPorEvento_(){
+  var m = {};
+  try{ var dd = getDados(); (dd.requests||[]).forEach(function(r){ if(r.eventId) m[r.eventId] = r; }); }catch(_){}
+  return m;
+}
 function manutPin_(){ return String(PropertiesService.getScriptProperties().getProperty('MANUT_PIN') || 'manutencao'); }
 function validManutPin_(p){ return !!p && String(p).trim() === manutPin_(); }
 /** Mapa eventId|date -> [comentários] (histórico carimbado). */
@@ -976,13 +982,14 @@ function readManut_(){
 function getAgendaManut(pin, ano, mes){
   if(!validManutPin_(pin)) throw new Error('PIN inválido.');
   ano = +ano; mes = +mes;
-  var com = readManut_(), out = [];
+  var com = readManut_(), req = _reqPorEvento_(), out = [];
   try{
     var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
     var evs = cal.getEvents(new Date(ano, mes, 1), new Date(ano, mes+1, 1));
     for(var i=0;i<evs.length;i++){ var ev = evs[i];
       var _all = normAll([ev.getTitle(), ev.getDescription(), ev.getLocation()].join(' | '));
       var d = Utilities.formatDate(ev.getStartTime(), TZ, 'yyyy-MM-dd'), id = ev.getId();
+      var _r = req[id] || null;
       out.push({
         id: id,
         resp: str(ev.getTitle()) || '(sem título)',
@@ -991,6 +998,8 @@ function getAgendaManut(pin, ano, mes){
         e: Utilities.formatDate(ev.getEndTime(), TZ, 'HH:mm'),
         space: _all[0] || null,
         spaces: _all,
+        quando: _r ? str(_r.quando) : '',   // quando a pessoa fez a solicitação
+        dept: _r ? str(_r.dept) : '',        // departamento escolhido na reserva
         coment: com[id + '|' + d] || []
       });
     }
@@ -998,14 +1007,35 @@ function getAgendaManut(pin, ano, mes){
   return out;
 }
 /** Registra um comentário interno da manutenção numa reserva (histórico carimbado). */
-function comentarManut(pin, eventId, date, space, autor, texto){
+function comentarManut(pin, eventId, date, space, autor, texto, dept){
   if(!validManutPin_(pin)) throw new Error('PIN inválido.');
   texto = str(texto); if(!texto) throw new Error('Escreva um comentário.');
   eventId = str(eventId); date = str(date);
   if(!eventId && !date) throw new Error('Reserva inválida.');
   var carimbo = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
-  getManut_().appendRow([eventId, date, str(space), str(autor), texto, carimbo]);
+  getManut_().appendRow([eventId, date, str(space), str(autor), texto, carimbo, str(dept)]);
   return { ok:true, coment: (readManut_())[eventId + '|' + date] || [] };
+}
+/** Relatório de manutenção (painel): todos os comentários enriquecidos com espaço, departamento,
+ *  responsável, autor e quando foi reservado. Protegido pelo login do painel. */
+function getRelatorioManut(){
+  var sh = getManut_(), v = sh.getDataRange().getValues(), req = _reqPorEvento_(), out = [];
+  for(var i=1;i<v.length;i++){ var r = v[i]; if(!r[0] && !r[1]) continue;
+    var eventId = String(r[0]), _r = req[eventId] || null;
+    out.push({
+      eventId: eventId,
+      date: String(r[1]),
+      space: str(r[2]),
+      autor: str(r[3]),
+      texto: str(r[4]),
+      carimbo: fmtCarimbo_(r[5]),
+      dept: str(r[6]) || (_r ? str(_r.dept) : ''),   // guardado no comentário; senão, da solicitação
+      resp: _r ? str(_r.title) : '',
+      quando: _r ? str(_r.quando) : ''
+    });
+  }
+  out.sort(function(a,b){ return String(b.carimbo).localeCompare(String(a.carimbo)); });
+  return out;
 }
 
 // upsert por key — aplica só os campos passados em patch, preserva o resto

@@ -133,6 +133,8 @@ var google={script:{}};
   .rsv-nm{font-size:15px;font-weight:700;color:var(--ink);line-height:1.25}
   .rsv-meta{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);margin-top:2px}
   .rsv-loc{font-size:12.5px;color:var(--ink-faint);margin-top:1px}
+  .rsv-nm .dep{display:inline-block;margin-left:7px;font-size:10.5px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:1px 8px;border-radius:999px;vertical-align:1px;letter-spacing:.02em}
+  .rsv-when{font-size:11.5px;color:var(--ink-soft);margin-top:4px;font-family:"IBM Plex Mono",monospace}
   .coms{margin:10px 0 0;display:flex;flex-direction:column;gap:7px}
   .com{background:var(--surface-2);border-radius:9px;padding:7px 10px}
   .com .cm-t{font-size:13px;color:var(--ink);line-height:1.4;word-break:break-word}
@@ -396,7 +398,7 @@ function renderDaySheet(isoD){
           renderDaySheet(isoD); render();
         })
         .withFailureHandler(function(e){ btn.disabled=false; fb.textContent=(e&&e.message)||"Falhou. Tente de novo."; fb.className="fb bad"; })
-        .comentarManut(PIN, ev.id, ev.date, ev.space||"", autor, texto);
+        .comentarManut(PIN, ev.id, ev.date, ev.space||"", autor, texto, ev.dept||"");
     });
   });
 }
@@ -405,11 +407,14 @@ function rsvHtml(ev,ix){
     return '<div class="com"><div class="cm-t">'+esc(c.texto)+'</div><div class="cm-m">'
       +(c.autor?'<b>'+esc(c.autor)+'</b> · ':'')+esc(fmtCarimbo(c.carimbo))+'</div></div>';
   }).join("");
+  var dept=ev.dept?('<span class="dep">'+esc(ev.dept)+'</span>'):'';
+  var resv=ev.quando?('<div class="rsv-when">🕒 Reservado em '+esc(fmtQuandoLongo(ev.quando))+'</div>'):'';
   return '<div class="rsv" data-ix="'+ix+'">'
     +'<div class="rsv-top"><span class="bar" style="background:'+corDe(ev.space)+'"></span>'
-    +'<div><div class="rsv-nm">'+esc(ev.resp)+'</div>'
+    +'<div style="flex:1"><div class="rsv-nm">'+esc(ev.resp)+dept+'</div>'
     +'<div class="rsv-meta">'+ev.s+'–'+ev.e+'</div>'
-    +'<div class="rsv-loc">'+esc(labelLocal(ev))+'</div></div></div>'
+    +'<div class="rsv-loc">'+esc(labelLocal(ev))+'</div>'
+    +resv+'</div></div>'
     +(coms?'<div class="coms">'+coms+'</div>':'')
     +'<div class="addc">'
     +'<textarea placeholder="Comentário interno (ex.: ar-condicionado pingando, cadeiras fora do lugar, tudo ok)…"></textarea>'
@@ -419,6 +424,10 @@ function rsvHtml(ev,ix){
 function fmtCarimbo(c){ // "yyyy-MM-dd HH:mm" -> "DD/MM HH:mm"
   var m=String(c||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
   return m ? (m[3]+"/"+m[2]+" "+m[4]+":"+m[5]) : String(c||"");
+}
+function fmtQuandoLongo(c){ // "yyyy-MM-dd HH:mm" -> "DD/MM/AAAA | HHhMMm"
+  var m=String(c||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? (m[3]+"/"+m[2]+"/"+m[1]+" | "+m[4]+"h"+m[5]+"m") : String(c||"");
 }
 
 document.getElementById("daySheetClose").onclick=closeDay;

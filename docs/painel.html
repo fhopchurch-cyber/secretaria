@@ -12,7 +12,7 @@
 // Adaptador: finge ser o google.script.run e fala com o Apps Script (API) por fetch.
 var google={script:{}};
 (function(){
-  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva","finalizarAtendimento","cancelarAtendimento","reabrirAtendimento"];
+  var FN=["getOcupacao","enviarReserva","enviarReservaDatas","recuperarSenha","getMe","getSelfUrl","getPagina","getDados","getConfig","saveConfig","aprovar","recusar","desfazer","excluir","excluirLote","editar","editarAtendimento","encaminhar","encaminharComAgenda","adicionarOcorrencia","adicionarOcorrenciasMultiplas","getAgendaMes","getEspacosNaoReconhecidos","definirEspacoEvento","editarEvento","excluirEvento","getConvidados","migrarParaAtendimento","migrarParaReserva","finalizarAtendimento","cancelarAtendimento","reabrirAtendimento","getRelatorioManut"];
   function builder(){
     var onOk=null,onErr=null;
     var api={withSuccessHandler:function(f){onOk=f;return api;},withFailureHandler:function(f){onErr=f;return api;}};
@@ -944,7 +944,7 @@ function render(){
       tile("warn",atendM,"atendimentos")+
     '</div>'+
     '<nav>'+
-      tb("mes","Mês")+tb("reservas","Reservas")+tb("pedidos","Solicitações",pendT)+tb("conflitos","Conflitos",conflicts.length)+tb("pastoral","Atendimento",pasT)+
+      tb("mes","Mês")+tb("reservas","Reservas")+tb("pedidos","Solicitações",pendT)+tb("conflitos","Conflitos",conflicts.length)+tb("pastoral","Atendimento",pasT)+tb("manut","Manutenção")+
       '<button class="tab" data-t="admin" aria-selected="'+(tab==="admin")+'" style="margin-left:auto">⚙ Admin</button>'+
     '</nav>'+
     '<div id="body"></div>'+
@@ -964,6 +964,7 @@ function renderBody(){
   else if(tab==="pedidos")b.innerHTML=pedidosHtml();
   else if(tab==="conflitos")b.innerHTML=conflitosHtml();
   else if(tab==="pastoral")b.innerHTML=pastoralHtml();
+  else if(tab==="manut"){b.innerHTML=manutHtml();wireManut(b);}
   else if(tab==="admin")b.innerHTML=adminHtml();
   wireActions(b);
   if(tab==="reservas"){ wireReservas(b); ensureRangeReservas(); }
@@ -1188,6 +1189,91 @@ function printRelatorio(){
   }
   var w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir",true);return;}
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(titulo)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{width:100%;border-collapse:collapse;font-size:13px;max-width:480px}th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #ddd}th{background:#f2f2f2;text-transform:uppercase;font-size:10.5px}</style></head><body><h1>FHOP · Atendimentos pastorais</h1><div class="sub">'+esc(titulo)+'</div><table><thead><tr><th>Pastor</th><th style="text-align:right">Atendimentos</th></tr></thead><tbody>'+rows+'</tbody></table>'+cancHtml+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
+  w.document.close();
+}
+/* ===== Relatório de manutenção (comentários por espaço / departamento) ===== */
+var MANUT_REL=null, MANUT_REL_LOADING=false;
+function loadManutRel(force){
+  if(MANUT_REL_LOADING)return;
+  if(MANUT_REL!==null&&!force)return;
+  MANUT_REL_LOADING=true;
+  google.script.run
+    .withSuccessHandler(function(l){MANUT_REL=l||[];MANUT_REL_LOADING=false;if(tab==="manut")renderBody();})
+    .withFailureHandler(function(){MANUT_REL_LOADING=false;if(tab==="manut"){if(MANUT_REL===null)MANUT_REL=[];renderBody();}})
+    .getRelatorioManut();
+}
+function manutRelDados(){
+  var all=MANUT_REL||[];
+  var mesesObj={};all.forEach(function(c){var m=String(c.date||"").slice(0,7);if(/^\d{4}-\d{2}$/.test(m))mesesObj[m]=1;});
+  var meses=Object.keys(mesesObj).sort().reverse();
+  var per=window._manutPer||"total";if(per!=="total"&&meses.indexOf(per)<0)per="total";
+  var grp=window._manutGroup==="dept"?"dept":"espaco";
+  var filt=all.filter(function(c){return per==="total"||String(c.date||"").slice(0,7)===per;});
+  var groups={};
+  filt.forEach(function(c){var key=grp==="dept"?(c.dept||"(sem departamento)"):(c.space||"(sem local)");(groups[key]=groups[key]||[]).push(c);});
+  Object.keys(groups).forEach(function(k){groups[k].sort(function(a,b){return String(b.carimbo).localeCompare(String(a.carimbo));});});
+  var keys=Object.keys(groups).sort(function(a,b){return groups[b].length-groups[a].length||a.localeCompare(b,"pt");});
+  return {per:per,grp:grp,meses:meses,groups:groups,keys:keys,total:filt.length};
+}
+function manutHtml(){
+  if(MANUT_REL===null){loadManutRel();return '<div class="empty">Carregando relatório de manutenção…</div>';}
+  var d=manutRelDados();
+  var selSt='font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);color:var(--ink)';
+  var sel='<select id="manutPer" style="'+selSt+'"><option value="total"'+(d.per==="total"?" selected":"")+'>Total (todos os meses)</option>'+d.meses.map(function(m){return '<option value="'+m+'"'+(d.per===m?" selected":"")+'>'+mesLabel(m)+'</option>';}).join("")+'</select>';
+  var seg='<div class="seg" id="manutGroup" style="max-width:320px"><button type="button" data-g="espaco" aria-pressed="'+(d.grp==="espaco"?"true":"false")+'">Por espaço</button><button type="button" data-g="dept" aria-pressed="'+(d.grp==="dept"?"true":"false")+'">Por departamento</button></div>';
+  var th='style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);color:var(--ink-faint);text-transform:uppercase;font-size:10.5px;letter-spacing:.04em"';
+  var td='style="padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top"';
+  var secondLabel=d.grp==="dept"?"Local":"Departamento";
+  var body;
+  if(!d.total){
+    body='<div class="empty" style="margin-top:12px">Nenhum comentário de manutenção'+(d.per==="total"?"":" nesse mês")+'.</div>';
+  }else{
+    body=d.keys.map(function(k){
+      var rows=d.groups[k].map(function(c){
+        var seg2=d.grp==="dept"?(c.space||"—"):(c.dept||"—");
+        var resv=c.quando?fmtQuando(c.quando):"—";
+        return '<tr>'
+          +'<td '+td+' style="white-space:nowrap">'+(c.date?fmtD(c.date):"—")+'</td>'
+          +'<td '+td+'>'+esc(seg2)+'</td>'
+          +'<td '+td+'>'+esc(c.resp||"—")+'</td>'
+          +'<td '+td+' style="white-space:nowrap;font-size:11.5px;color:var(--ink-soft)">'+esc(resv)+'</td>'
+          +'<td '+td+'><div>'+esc(c.texto)+'</div><div style="font-size:11px;color:var(--ink-faint);margin-top:2px">'+(c.autor?esc(c.autor)+" · ":"")+esc(fmtQuandoCurto(c.carimbo))+'</div></td>'
+          +'</tr>';
+      }).join("");
+      return '<div style="margin:0 0 16px">'
+        +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px"><span style="font-family:Archivo,sans-serif;font-weight:800;font-size:15px">'+esc(k)+'</span><span class="cnt">'+d.groups[k].length+'</span></div>'
+        +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px"><thead><tr>'
+        +'<th '+th+'>Data</th><th '+th+'>'+secondLabel+'</th><th '+th+'>Responsável</th><th '+th+'>Reservado em</th><th '+th+'>Observação</th>'
+        +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    }).join("");
+  }
+  return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
+    +seg+'<label style="font-size:12px;font-weight:600;color:var(--ink-soft);margin-left:4px">Período</label>'+sel
+    +'<button class="btn-sm" id="manutRefresh">Atualizar</button>'
+    +'<button class="btn-sm" id="manutPrint" style="margin-left:auto">🖨 Imprimir</button></div>'
+    +'<p class="ahint" style="margin:0 0 10px">'+d.total+' comentário(s) da manutenção · agrupado '+(d.grp==="dept"?"por departamento (o escolhido na reserva)":"por espaço")+'.</p>'
+    +body;
+}
+function fmtQuandoCurto(c){var m=String(c||"").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);return m?(m[3]+"/"+m[2]+" "+m[4]+":"+m[5]):String(c||"");}
+function wireManut(b){
+  var sp=b.querySelector("#manutPer");if(sp)sp.onchange=function(){window._manutPer=this.value;renderBody();};
+  b.querySelectorAll("#manutGroup button").forEach(function(x){x.onclick=function(){window._manutGroup=x.getAttribute("data-g");renderBody();};});
+  var rf=b.querySelector("#manutRefresh");if(rf)rf.onclick=function(){MANUT_REL=null;loadManutRel(true);renderBody();};
+  var pr=b.querySelector("#manutPrint");if(pr)pr.onclick=function(){printManut();};
+}
+function printManut(){
+  var d=manutRelDados();
+  var titulo="Manutenção — "+(d.grp==="dept"?"por departamento":"por espaço")+" · "+(d.per==="total"?"Total (todos os meses)":mesLabel(d.per));
+  var secondLabel=d.grp==="dept"?"Local":"Departamento";
+  var sec=d.keys.map(function(k){
+    var rows=d.groups[k].map(function(c){
+      var seg2=d.grp==="dept"?(c.space||"—"):(c.dept||"—");
+      return '<tr><td>'+(c.date?fmtD(c.date):"—")+'</td><td>'+esc(seg2)+'</td><td>'+esc(c.resp||"—")+'</td><td>'+(c.quando?esc(fmtQuando(c.quando)):"—")+'</td><td>'+esc(c.texto)+(c.autor?'<br><i>'+esc(c.autor)+'</i>':"")+'</td></tr>';
+    }).join("");
+    return '<h2 style="font-size:14px;margin:20px 0 6px">'+esc(k)+' ('+d.groups[k].length+')</h2><table><thead><tr><th>Data</th><th>'+secondLabel+'</th><th>Responsável</th><th>Reservado em</th><th>Observação</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }).join("")||'<p>Nenhum comentário no período.</p>';
+  var w=window.open("","_blank");if(!w){toast("Permita pop-ups para imprimir",true);return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(titulo)+'</title><style>body{font-family:Arial,Helvetica,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 10px}table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;vertical-align:top}th{background:#f2f2f2;text-transform:uppercase;font-size:10px}</style></head><body><h1>FHOP · Relatório de manutenção</h1><div class="sub">'+esc(titulo)+'</div>'+sec+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
   w.document.close();
 }
 function pastoralHtml(){
