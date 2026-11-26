@@ -970,6 +970,14 @@ function _reqPorEvento_(){
 }
 function manutPin_(){ return String(cfg().manutPin || 'manutencao'); }
 function validManutPin_(p){ return !!p && String(p).trim() === manutPin_(); }
+/** Garante que todo comentário tenha um id (preenche os antigos, que foram criados sem id). */
+function _ensureManutIds_(){
+  var sh = getManut_(), v = sh.getDataRange().getValues(), wrote = false;
+  for(var i=1;i<v.length;i++){ var r = v[i];
+    if((r[0] || r[1]) && !String(r[7]||'').trim()){ sh.getRange(i+1, 8).setValue(Utilities.getUuid()); wrote = true; }
+  }
+  return wrote;
+}
 /** Normaliza a data (o Sheets pode devolver Date em vez de "yyyy-MM-dd") para a chave. */
 function manutDia_(v){
   if(v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
@@ -989,6 +997,7 @@ function readManut_(){
 function getAgendaManut(pin, ano, mes){
   if(!validManutPin_(pin)) throw new Error('PIN inválido.');
   ano = +ano; mes = +mes;
+  _ensureManutIds_();
   var com = readManut_(), req = _reqPorEvento_(), out = [];
   try{
     var cal = CalendarApp.getCalendarById(cfg().fontes.agenda);
@@ -1051,6 +1060,7 @@ function excluirComentarioManut(pin, id){
 /** Relatório de manutenção (painel): todos os comentários enriquecidos com espaço, departamento,
  *  responsável, autor e quando foi reservado. Protegido pelo login do painel. */
 function getRelatorioManut(){
+  _ensureManutIds_();
   var sh = getManut_(), v = sh.getDataRange().getValues(), req = _reqPorEvento_(), out = [];
   for(var i=1;i<v.length;i++){ var r = v[i]; if(!r[0] && !r[1]) continue;
     var eventId = String(r[0]), _r = req[eventId] || null;
